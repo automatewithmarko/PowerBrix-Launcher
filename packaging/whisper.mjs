@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {chmod,copyFile,mkdir,writeFile} from 'node:fs/promises';
+import {chmod,copyFile,mkdir,readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
 const version = '1.8.6';
@@ -35,8 +35,10 @@ export async function packageWhisper(stage, platform) {
   } else {
     const mingw = process.env.POWERBRIX_MINGW_BIN;
     if (!mingw) throw Error('Set POWERBRIX_MINGW_BIN to the LLVM MinGW bin directory to cross-build Windows.');
-    // The pinned whisper.cpp examples rely on transitive algorithm headers that LLVM MinGW omits.
-    options.push('-DCMAKE_CXX_FLAGS=-include algorithm','-DCMAKE_SYSTEM_NAME=Windows','-DCMAKE_SYSTEM_PROCESSOR=x86_64','-DCMAKE_EXE_LINKER_FLAGS=-static',
+    // The pinned whisper.cpp CLI examples use std::partial_sort without including its header.
+    const common = path.join(source,'examples','common.cpp');
+    await writeFile(common,'#include <algorithm>\n'+await readFile(common,'utf8'));
+    options.push('-DCMAKE_SYSTEM_NAME=Windows','-DCMAKE_SYSTEM_PROCESSOR=x86_64','-DCMAKE_EXE_LINKER_FLAGS=-static',
       '-DCMAKE_C_COMPILER='+path.join(mingw,'x86_64-w64-mingw32-clang'),
       '-DCMAKE_CXX_COMPILER='+path.join(mingw,'x86_64-w64-mingw32-clang++'));
   }
