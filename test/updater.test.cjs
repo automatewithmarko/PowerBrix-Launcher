@@ -1,7 +1,7 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const {createHash} = require('node:crypto');
-const {checkForUpdate,compareVersions} = require('../updater.cjs');
+const {checkForUpdate,startUpdatePolling,compareVersions} = require('../updater.cjs');
 
 const repository = 'automatewithmarko/PowerBrix-Launcher';
 const origin = 'https://github.com/'+repository+'/releases/download/v0.1.10/';
@@ -38,4 +38,36 @@ test('the updater ignores prereleases, inconsistent metadata and modified manife
   const invalid = structuredClone(release);
   invalid.assets[1].browser_download_url='https://example.com/download.dmg';
   assert.equal(await checkForUpdate('0.1.9','darwin-arm64',api(invalid)),null);
+});
+
+test('an open launcher discovers a release on the next minute check and stops on shutdown',async t=>{
+  t.mock.timers.enable({apis:['setInterval']});
+  const controller = new AbortController();
+  let version = '0.1.9';
+  let checks = 0;
+  const updates = [];
+  const request = async (url,options)=>{
+    if (options.method !== 'HEAD') return api()(url,options);
+    checks++;
+    return new Response(null,{status:302,headers:{
+      Location:'https://github.com/'+repository+'/releases/tag/v'+version,
+    }});
+  };
+  const settle = () => new Promise(resolve=>setImmediate(resolve));
+  startUpdatePolling('0.1.9',update=>updates.push(update),{request,signal:controller.signal,target:'darwin-arm64'});
+  await settle();
+  assert.equal(checks,1);
+  assert.equal(updates.length,0);
+  version = '0.1.10';
+  t.mock.timers.tick(59_999);
+  assert.equal(checks,1);
+  t.mock.timers.tick(1);
+  await settle();
+  assert.equal(updates[0]?.version,'0.1.10');
+  t.mock.timers.tick(60_000);
+  await settle();
+  assert.equal(updates.length,1);
+  controller.abort();
+  t.mock.timers.tick(60_000);
+  assert.equal(checks,3);
 });

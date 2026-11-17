@@ -31,15 +31,15 @@
     if (view.error) {
       title.textContent = 'Update could not finish';
       details.textContent = view.error;
-    } else if (view.welcome) {
+    } else if (view.welcome && !view.available) {
       title.textContent = 'Congratulations! You’re now on version '+view.version+'.';
     } else {
       title.textContent = 'New update available';
       details.textContent = view.available.name+' · Version '+view.available.version;
     }
 
-    const welcome = view.welcome && !view.error;
-    if (view.available && !welcome) {
+    const welcome = view.welcome && !view.available && !view.error;
+    if (view.available) {
       const action = document.createElement('button');
       action.className='update-download';
       action.textContent='Download and restart';

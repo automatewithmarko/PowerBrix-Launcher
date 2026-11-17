@@ -1,3 +1,24 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'"><link rel="stylesheet" href="app.css"><title>PowerBrix Launcher</title><script defer src="hero-waves.js"></script><script defer src="app.js"></script><script defer src="update-banner.js"></script></head>
-<body><div class="wave-hero" aria-hidden="true"><div class="waves" data-hero-waves></div></div><section id="update-banner" aria-label="Launcher updates" hidden></section><div id="app"><div class="launch">Loading PowerBrix Launcher…</div></div><div id="notice" role="status" aria-live="polite"></div></body></html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; frame-src 'none'"><link rel="stylesheet" href="app.css"><title>PowerBrix Launcher</title><script defer src="hero-waves.js"></script><script defer src="dictation.js"></script><script defer src="app.js"></script><script defer src="update-banner.js"></script></head>
+<body><div class="wave-hero" aria-hidden="true"><div class="waves" data-hero-waves></div></div><section id="update-banner" aria-label="Launcher updates" hidden></section><div id="app"><div class="launch">Loading PowerBrix Launcher…</div></div><div id="notice" role="status" aria-live="polite"></div>
+<dialog id="skill-dialog" aria-labelledby="skill-dialog-title">
+  <form id="skill-form">
+    <h2 id="skill-dialog-title">Add a skill</h2>
+    <label class="skill-field">Skill name <input name="name" maxlength="80" required autofocus placeholder="e.g. Concise answers"></label>
+    <div class="skill-source" role="group" aria-label="Skill source">
+      <button type="button" data-skill-mode="text" aria-pressed="true">Paste text</button>
+      <button type="button" data-skill-mode="file" aria-pressed="false">Upload file</button>
+    </div>
+    <label class="skill-field" data-skill-input="text">Instructions
+      <textarea name="content" maxlength="16000" rows="8" placeholder="Paste the instructions you want the model to follow"></textarea>
+    </label>
+    <div class="skill-upload" data-skill-input="file" hidden>
+      <input type="file" name="markdown" accept=".md" hidden>
+      <button type="button" class="btn secondary compact" id="choose-skill-file">Choose .md file</button>
+      <p id="skill-filename" aria-live="polite"></p>
+    </div>
+    <p id="skill-error" role="alert"></p>
+    <footer><button class="btn secondary compact" type="button" id="cancel-skill">Cancel</button><button class="btn primary compact" type="submit">Save skill</button></footer>
+  </form>
+</dialog>
+</body></html>

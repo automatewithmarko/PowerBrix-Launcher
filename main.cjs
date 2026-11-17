@@ -1,19 +1,22 @@
-const {app,BrowserWindow,ipcMain,dialog}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,shell}=require('electron');
 const {existsSync}=require('node:fs');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {randomUUID}=require('node:crypto');
 const {extensions,maxAttachments,supportsFiles,readAttachment}=require('./attachments.cjs');
 const catalog=require('./catalog.json');
-const {checkForUpdate,prepareUpdate,launchInstaller}=require('./updater.cjs');
+const {startUpdatePolling,prepareUpdate,launchInstaller}=require('./updater.cjs');
 const {fileSize,downloadFile}=require('./downloads.cjs');
 const {freeSpace,pickModels}=require('./device.cjs');
 const {ensureEngine,profileMachine,LocalEngine}=require('./engine.cjs');
+const {findWhisper,transcribe}=require('./dictation.cjs');
+const {searchWeb,safeUrl}=require('./web-search.cjs');
 
-app.setName('PowerBrix Launcher');
+const demo = !app.isPackaged && process.env.POWERBRIX_DEMO === '1';
+app.setName(demo ? 'PowerBrix Launcher Demo' : 'PowerBrix Launcher');
 if (process.env.POWERBRIX_DATA_DIR && !app.isPackaged) {
   app.setPath('userData',process.env.POWERBRIX_DATA_DIR);
-} else if (!app.commandLine.hasSwitch('user-data-dir')) {
+} else if (!demo && !app.commandLine.hasSwitch('user-data-dir')) {
   // Keep access to downloads, settings and chats from the preview build.
   const legacyDirectory=path.join(app.getPath('appData'),'PowerBrix Infer');
   if (!existsSync(app.getPath('userData')) && existsSync(legacyDirectory)) {
@@ -29,6 +32,7 @@ const platformSupported=process.platform==='darwin'&&process.arch==='arm64'||pro
 const fixture=!app.isPackaged&&process.env.POWERBRIX_FIXTURE_MODEL;
 const fixtureModel={id:'dev-fixture',name:'Development fixture',runtime:'fixture',local:true};
 let window,settings,scan,pull,chat,writes=Promise.resolve(),enginePromise;
+let dictation;
 const notify=(topic,data)=>{if(window&&!window.isDestroyed())window.webContents.send('pbx:'+topic,data);};
 const attachments=new Map();
 let choosingFiles=false;
@@ -45,6 +49,8 @@ function updateView() {
 }
 function sendUpdate() { notify('update',updateView()); }
 const runtime=new LocalEngine(status=>notify('engine',status));
+const pluginIds = ['chat-history', 'microphone-typing', 'skills', 'internet-search'];
+const skillList = () => settings.skills.map(({id,name,enabled}) => ({id,name,enabled}));
 const checkpoint=(model,file)=>path.join(settings.directory,model.id,file.path);
 const installed=async model=>Boolean(settings.installed[model.id]?.[settings.directory]&&
   (await Promise.all(model.files.map(async file=>await fileSize(checkpoint(model,file))===file.bytes))).every(Boolean));
@@ -70,11 +76,11 @@ async function snapshot() {
       return finalized===file.bytes?finalized:Math.min(file.bytes,await fileSize(target+'.part'));
     }))).reduce((a,b)=>a+b,0)]))
   ]);
-  const {installed:_,...view}=settings;
+  const {installed:_,skills:__,...view}=settings;
   const models=pickModels(catalog,settings.report,free,new Set(local),new Map(resume))
     .map(model=>({...model,filesSupported:supportsFiles(model)}));
   if(fixture)models.push(fixtureModel);
-  return {...view,actual,platformSupported,free,models,scan:scan?.status,pull:pull?.progress,engineStatus:runtime.status};
+  return {...view,skills:skillList(),actual,platformSupported,free,models,scan:scan?.status,pull:pull?.progress,engineStatus:runtime.status};
 }
 function action(name,handler) {
   ipcMain.handle('pbx:'+name,(event,...args)=>{
@@ -92,11 +98,55 @@ function cleanMessages(messages) {
   });
 }
 app.whenReady().then(async()=>{
+  if (demo) app.dock?.setIcon(path.join(__dirname,'assets','icon.png'));
   await fs.mkdir(root,{recursive:true,mode:0o700});
-  settings={platform:actual,onboarded:false,directory:path.join(root,'models'),report:null,installed:{},selected:null};
+  settings={platform:actual,onboarded:false,directory:path.join(root,'models'),report:null,installed:{},selected:null,plugins:[],skills:[]};
   try {Object.assign(settings,JSON.parse(await fs.readFile(settingsPath,'utf8')));} catch(error) {if(error.code!=='ENOENT')throw error;}
+  settings.plugins = Array.isArray(settings.plugins) ? [...new Set(settings.plugins.filter(id=>typeof id==='string'))] : [];
+  if (!Array.isArray(settings.skills)) settings.skills = [];
   await fs.mkdir(settings.directory,{recursive:true,mode:0o700});
   action('state',snapshot);
+  action('openWebSource',async url=>{
+    const link = typeof url === 'string' && /^https?:\/\//i.test(url) && safeUrl(url);
+    if (!link) throw Error('Invalid web source.');
+    await shell.openExternal(link);
+  });
+  action('installPlugin',async id=>{
+    if (!pluginIds.includes(id)) throw Error('This plugin is unavailable.');
+    if (id === 'microphone-typing') await findWhisper();
+    if (!settings.plugins.includes(id)) {
+      settings.plugins.push(id);
+      await save();
+    }
+    return {plugins:[...settings.plugins]};
+  });
+  action('manageSkill',async (operation,input)=>{
+    if (!settings.plugins.includes('skills')) throw Error('Install Skills first.');
+    if (operation === 'create') {
+      const name = typeof input?.name === 'string' ? input.name.trim() : '';
+      const content = typeof input?.content === 'string' ? input.content.trim() : '';
+      if (!name || name.length > 80) throw Error('Enter a skill name of up to 80 characters.');
+      if (!content || content.length > 16000 || content.includes('\0')) throw Error('Enter up to 16,000 characters of skill text.');
+      settings.skills.push({id:randomUUID(),name,content,enabled:false});
+    } else {
+      const skill = settings.skills.find(item => item.id === input?.id);
+      if (!skill) throw Error('This skill no longer exists.');
+      if (operation === 'toggle' && typeof input.enabled === 'boolean') skill.enabled = input.enabled;
+      else if (operation === 'delete') settings.skills = settings.skills.filter(item => item !== skill);
+      else throw Error('Invalid skill action.');
+    }
+    await save();
+    return {skills:skillList()};
+  });
+  action('transcribe',async audio=>{
+    if (!settings.plugins.includes('microphone-typing')) throw Error('Install Microphone Typing first.');
+    if (dictation) throw Error('Wait for the current transcription to finish.');
+    dictation = new AbortController();
+    try {
+      const signal = AbortSignal.any([dictation.signal, AbortSignal.timeout(180000)]);
+      return await transcribe(root, audio, signal);
+    } finally { dictation = null; }
+  });
   updateFailure=(await fs.readFile(path.join(root,'update-error.txt'),'utf8').catch(()=>null))?.trim() || null;
   if(updateFailure)await fs.rm(path.join(root,'update-error.txt'),{force:true});
   action('updates',updateView);
@@ -108,7 +158,7 @@ app.whenReady().then(async()=>{
   });
   action('installUpdate',async()=>{
     if(!availableUpdate||updateProgress||!app.isPackaged)return;
-    if(scan||pull||chat||choosingFiles)throw Error('Finish the current download, scan, or reply before updating.');
+    if(scan||pull||chat||dictation||choosingFiles)throw Error('Finish the current download, scan, or reply before updating.');
     updateFailure=null;
     const progress=details=>{
       if(updateProgress?.phase===details.phase && updateProgress.percent===details.percent)return;
@@ -119,6 +169,7 @@ app.whenReady().then(async()=>{
     try {
       const signal=AbortSignal.any([updateAbort.signal,AbortSignal.timeout(1200000)]);
       const prepared=await prepareUpdate(availableUpdate,root,app.getPath('exe'),progress,signal);
+      await writes;
       signal.throwIfAborted();
       await launchInstaller(prepared);
       app.quit();
@@ -219,11 +270,12 @@ app.whenReady().then(async()=>{
       choosingFiles=false;
     }
   });
-  action('chat',async(id,messages)=>{
+  action('chat',async(id,messages,useWebSearch=false)=>{
     if(chat||scan)throw Error('Wait for the current scan or reply to finish first.');
     const model=fixture&&id===fixtureModel.id?fixtureModel:catalog.find(item=>item.id===id);
     if(!model||model!==fixtureModel&&!(await installed(model)))throw Error('Pull a model before starting a chat.');
     const history=cleanMessages(messages);
+    if (useWebSearch && !settings.plugins.includes('internet-search')) throw Error('Install Internet Search first.');
     const newestFiles=history.at(-1).files;
     if(newestFiles.length&&!supportsFiles(model))throw Error('This model cannot read attachments.');
     if(newestFiles.some(id=>!attachments.has(id)))throw Error('An attachment has expired. Attach the file again.');
@@ -231,19 +283,25 @@ app.whenReady().then(async()=>{
       ? [...new Set(history.flatMap(message=>message.files))].map(id=>attachments.get(id)).filter(Boolean).slice(-maxAttachments)
       : [];
     const prompt=history.map(({role,content})=>({role,content}));
+    const enabledSkills = settings.plugins.includes('skills') ? settings.skills.filter(skill => skill.enabled) : [];
     if(quitting)throw Error('PowerBrix Launcher is closing.');
     if(chat||scan)throw Error('A scan or reply is already running.');
     const controller=new AbortController();
     chat=controller;
     const progress=status=>notify('chat', {status});
     try {
+      let sources = [];
+      if (useWebSearch) {
+        progress('Searching the web…');
+        sources = await searchWeb(prompt.at(-1).content,controller.signal);
+      }
       await runtime.start(model,model===fixtureModel?fixture:checkpoint(model,model.files[0]),engine,root,progress,controller.signal);
-      const prepared=documents.length
-        ? await runtime.withAttachmentText(prompt,documents,controller.signal)
+      const prepared=documents.length || enabledSkills.length || sources.length
+        ? await runtime.prepareChatContext(prompt,documents,enabledSkills,controller.signal,sources)
         : {messages:prompt};
       progress('Generating on this device…');
       return {answer:await runtime.chat(prepared.messages,controller.signal,delta=>notify('chat',delta)),
-        shortened:prepared.shortened};
+        shortened:prepared.shortened,sources:prepared.sources};
     } catch(error) {
       if(controller.signal.aborted)return {stopped:true};
       throw error;
@@ -255,12 +313,20 @@ app.whenReady().then(async()=>{
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   window.webContents.on('will-navigate',event=>event.preventDefault());
-  window.webContents.session.setPermissionRequestHandler((_,__,callback)=>callback(false));
-  window.loadFile(path.join(__dirname,'renderer','index.html'));
+  window.webContents.session.setPermissionCheckHandler((contents, permission, _origin, details) =>
+    contents === window.webContents && permission === 'media' && details.isMainFrame &&
+    details.mediaType === 'audio' && settings.plugins.includes('microphone-typing'));
+  window.webContents.session.setPermissionRequestHandler((contents, permission, callback, details) => callback(
+    contents === window.webContents && permission === 'media' && details.isMainFrame &&
+    details.mediaTypes?.length === 1 && details.mediaTypes[0] === 'audio' &&
+    settings.plugins.includes('microphone-typing')));
+  window.loadFile(path.join(__dirname,'renderer','index.html'), demo ? {query:{demo:'1'}} : undefined);
   if(app.isPackaged) {
-    checkForUpdate(app.getVersion()).then(update=>{
-      availableUpdate=update;sendUpdate();
-    }).catch(()=>{});
+    startUpdatePolling(app.getVersion(),update=>{
+      if (updateProgress) return false;
+      availableUpdate=update;
+      sendUpdate();
+    },{signal:updateAbort.signal});
   }
 }).catch(error=>{dialog.showErrorBox('PowerBrix Launcher could not start',error.message);app.quit();});
 app.on('window-all-closed',()=>app.quit());
@@ -270,8 +336,8 @@ app.on('before-quit',event=>{
   event.preventDefault();
   if(quitting)return;
   quitting=true;
-  updateAbort.abort();pull?.stop.abort();scan?.stop.abort();chat?.abort();
-  runtime.stop().catch(error=>console.error('Engine cleanup failed:',error)).finally(()=>{
+  updateAbort.abort();pull?.stop.abort();scan?.stop.abort();chat?.abort();dictation?.abort();
+  Promise.allSettled([runtime.stop(),writes]).finally(()=>{
     shutdownComplete=true;
     app.quit();
   });

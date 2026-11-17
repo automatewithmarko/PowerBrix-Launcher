@@ -4,6 +4,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {packager} from '@electron/packager';
+import {packageWhisper} from './whisper.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const product = 'PowerBrix Launcher';
@@ -23,7 +24,9 @@ function run(executable, args) {
 const stage = await mkdtemp(path.join(tmpdir(), 'powerbrix-launcher-'));
 try {
   await mkdir(output, {recursive: true});
+  const whisper = await packageWhisper(stage,platform);
   const [appDir] = await packager({
+    extraResource: [whisper],
     dir: root,
     name: product,
     platform: platform === 'mac' ? 'darwin' : 'win32',
@@ -35,6 +38,7 @@ try {
     ignore: /^\/(build|installers|packaging|test)(\/|$)/,
     ...(platform === 'mac' ? {
       appBundleId: 'ai.powerbrix.infer',
+      extendInfo: {NSMicrophoneUsageDescription: 'PowerBrix turns your voice into a chat prompt on this device.'},
     } : {
       win32metadata: {
         CompanyName: 'PowerBrix',

@@ -7,6 +7,8 @@ const {downloadFile} = require('./downloads.cjs');
 
 const run = promisify(execFile);
 const repository = 'automatewithmarko/PowerBrix-Launcher';
+const latestReleaseUrl = 'https://github.com/'+repository+'/releases/latest';
+const updateInterval = 60_000;
 const filenames = {
   'darwin-arm64': 'PowerBrix-Launcher-macOS-arm64.dmg',
   'win32-x64': 'PowerBrix-Launcher-Windows-x64-Setup.exe',
@@ -49,6 +51,39 @@ async function checkForUpdate(current, target=process.platform+'-'+process.arch,
   const info = JSON.parse(bytes);
   if (info.version!==version || typeof info.name!=='string' || !info.name.trim() || info.name.length>100) return null;
   return {version,name:info.name.trim(),installer};
+}
+
+function startUpdatePolling(current, onUpdate, {request=fetch, signal, target=process.platform+'-'+process.arch} = {}) {
+  let pending = false;
+  let publishedVersion;
+  async function poll() {
+    if (pending || signal?.aborted) return;
+    pending = true;
+    try {
+      const timeout = AbortSignal.timeout(12_000);
+      const response = await request(latestReleaseUrl,{
+        method:'HEAD',redirect:'manual',cache:'no-cache',
+        signal:signal ? AbortSignal.any([signal,timeout]) : timeout,
+      });
+      const location = response.headers.get('location');
+      if (response.status < 300 || response.status >= 400 || !location) return;
+      const release = new URL(location,latestReleaseUrl);
+      const prefix = '/'+repository+'/releases/tag/v';
+      if (release.origin !== 'https://github.com' || !release.pathname.startsWith(prefix)) return;
+      const version = release.pathname.slice(prefix.length);
+      if (!versionPattern.test(version) || compareVersions(version,current) <= 0 || version === publishedVersion) return;
+      const update = await checkForUpdate(current,target,request);
+      if (!update || update.version !== version || signal?.aborted) return;
+      if (onUpdate(update) !== false) publishedVersion = version;
+    } catch {
+      // The next interval retries transient network errors.
+    } finally { pending = false; }
+  }
+  void poll();
+  const timer = setInterval(poll,updateInterval);
+  timer.unref?.();
+  signal?.addEventListener('abort',()=>clearInterval(timer),{once:true});
+  return timer;
 }
 
 async function installedApp(executable) {
@@ -127,4 +162,4 @@ async function launchInstaller(prepared, pid=process.pid) {
   });
 }
 
-module.exports = {checkForUpdate,compareVersions,prepareUpdate,launchInstaller};
+module.exports = {checkForUpdate,startUpdatePolling,compareVersions,prepareUpdate,launchInstaller};

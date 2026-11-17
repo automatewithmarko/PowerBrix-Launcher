@@ -67,7 +67,9 @@ Disk sizes are approximate for the specific quantization PowerBrix pulls. Each n
 2. Move the Mac app into Applications, or run the Windows setup.
 3. Open the launcher, select **Analyze System**, then pull a model from the results or **Discover Models**.
 
-Install v0.1.7 or later once to get in-app updates. The launcher checks the public GitHub release on startup without an account, verifies downloads against the release checksum, and restarts only after you select **Download and restart**. Models, chats, and app preferences live in the user profile.
+Install v0.1.7 or later once to get in-app updates. The launcher checks GitHub without an account on startup and, from v0.1.10 onward, every minute while it is open. It verifies downloads against the release checksum and restarts only after you select **Download and restart**. Models, chats, installed plugins, and custom skills (including their enabled states) stay in your user profile when you update.
+
+In **Plugins**, you can enable Chat History, Microphone Typing, Skills, and Internet Search. Microphone Typing downloads its speech model on first use and transcribes on your device. Internet Search sends only the search query to the search provider.
 
 The Mac app is signed locally and has not been notarized. The Windows installer is unsigned. The Windows build and installer contents are verified during packaging; live Windows inference and updating need hardware validation.
 
@@ -81,7 +83,7 @@ npm start
 npm test
 ```
 
-Install `dmgbuild` with `pipx install dmgbuild==2.0.0`, then run `npm run package:mac` on macOS to make a DMG. Run `npm run package:win` with `makensis` on the path to build the Windows setup. Both scripts write to `build/`.
+Installer builds compile the bundled speech tool with CMake and a C++ compiler. Use Ninja on macOS and Visual Studio Build Tools when building on Windows. Install `dmgbuild` with `pipx install dmgbuild==2.0.0`, then run `npm run package:mac` on macOS to make a DMG. Run `npm run package:win` with `makensis` on the path to build the Windows setup. Both scripts write to `build/`.
 
 ### Ship an update
 

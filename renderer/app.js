@@ -1,12 +1,22 @@
 const root=document.querySelector('#app');
 const notice=document.querySelector('#notice');
 const api=window.infer;
+const demo = new URLSearchParams(location.search).get('demo') === '1';
+if (demo) document.title = 'PowerBrix Launcher Demo';
 let state,page,platformOpen=false,busy=false,thinking=false,answer='',reasoning='',status='',toastTimer;
-let sidebarCollapsed = localStorage.getItem('powerbrix-sidebar-collapsed') === 'true';
-let waitForSidebarExit = false;
+let pluginQuery = '';
 let modelMenuOpen = false;
+let skillsMenuOpen = false;
+let commandIndex = 0;
+const webCommand = /(^|\s)\/web-search(?=\s|$)/i;
 let pendingFiles = [];
 let choosingFiles = false;
+let capture, voicePhase = '', waveRequest;
+let volume = 0;
+let currentChat = null;
+let conversations = [];
+const drafts = new Map();
+const draftKey = () => currentChat ?? 'draft';
 let turns=[];
 try { turns=JSON.parse(localStorage.getItem('powerbrix-chat')||'[]'); } catch {}
 if(!Array.isArray(turns))turns=[];
@@ -15,8 +25,16 @@ const icons={
   paperclip:icon('M9 13l6-6a2 2 0 0 1 3 3l-8 8a4 4 0 0 1-6-6l9-9a5 5 0 0 1 7 7l-8 8'),
   chevron:icon('M6 15l6-6 6 6'),
   close:icon('M6 6l12 12M18 6L6 18'),
-  panel:icon('M4 5h16v14H4zM9 5v14'),
   chat:icon('M20 11.5a7.5 7.5 0 0 1-7.5 7.5H4l1.4-3A7.5 7.5 0 1 1 20 11.5Z'),
+  plugins:icon('M4 8h4V6a2 2 0 0 1 4 0v2h4v4h2a2 2 0 0 1 0 4h-2v4h-4v-2a2 2 0 0 0-4 0v2H4v-4h2a2 2 0 0 0 0-4H4Z'),
+  history:icon('M3 12a9 9 0 1 0 3-6.7L3 8m0-4v4h4m5-1v5l3 2'),
+  mic:icon('M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5Zm-3 7a6 6 0 0 0 12 0m-6 6v4m-3 0h6'),
+  skills:icon('M5 3h13a1 1 0 0 1 1 1v17H6a2 2 0 0 1-2-2V4a1 1 0 0 1 1-1Zm-1 16a2 2 0 0 1 2-2h13M8 8l2 2 4-4m-6 7h7'),
+  search:icon('M16 16l4 4m-2-9a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z'),
+  globe:icon('M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18m-9-9c2 2.5 3 5.5 3 9s-1 6.5-3 9c-2-2.5-3-5.5-3-9s1-6.5 3-9Z'),
+  edit:icon('M13 6l5 5M4 20l4.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11L4 20Z'),
+  trash:icon('M4 7h16M9 7V4h6v3m-9 0 1 13h10l1-13m-8 4v5m4-5v5'),
+  stop:icon('M7 7h10v10H7z'),
   models:icon('M12 3 3 8l9 5 9-5-9-5ZM3 12l9 5 9-5M3 16l9 5 9-5'),
   discover:icon('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm3.7 5.3-2.2 5.2-5.2 2.2 2.2-5.2 5.2-2.2Z'),
   chip:icon('M7 6h10l1 1v10l-1 1H7l-1-1V7l1-1Zm2 3h6v6H9V9Zm0-6v3m6-3v3m-6 12v3m6-3v3M3 9h3m-3 6h3m12-6h3m-3 6h3'),
@@ -31,6 +49,75 @@ const gb=(value,precision=1)=>value?(value/2**30).toFixed(precision)+' GB':'Unav
 const speed=value=>value>=10?value.toFixed(0):value>=.1?value.toFixed(1):value.toFixed(2);
 const bandwidth=value=>value?(value/1e9).toFixed(1)+' GB/s':'';
 const button=(action,label,cls='btn secondary',attrs='')=>'<button type="button" data-action="'+action+'" class="'+cls+'" '+attrs+'>'+label+'</button>';
+const hasPlugin = id => state.plugins?.includes(id);
+const historyOn = () => hasPlugin('chat-history');
+const chatBusy = () => thinking || choosingFiles || Boolean(voicePhase);
+const isClearCommand = text => /^\/clear$/i.test(text.trim());
+
+function clearCurrentChat() {
+  if (chatBusy()) return;
+  drafts.delete(draftKey());
+  pendingFiles = [];
+  turns = [];
+  modelMenuOpen = false;
+  skillsMenuOpen = false;
+  localStorage.setItem('powerbrix-chat','[]');
+  const active = conversations.find(chat => chat.id === currentChat);
+  if (historyOn() && active) {
+    active.turns = [];
+    storeHistory();
+  }
+  render();
+  document.querySelector('#prompt')?.focus();
+  tell('Chat cleared.');
+}
+
+function readHistory() {
+  try { conversations = JSON.parse(localStorage.getItem('powerbrix-conversations') || '[]'); } catch { conversations = []; }
+  if (!Array.isArray(conversations)) conversations = [];
+  if (!conversations.length && turns.length) {
+    saveConversation();
+    return;
+  }
+  const active = conversations.find(chat => chat.id === localStorage.getItem('powerbrix-active-chat'));
+  currentChat = active?.id ?? null;
+  turns = active?.turns ?? [];
+}
+
+function storeHistory() {
+  localStorage.setItem('powerbrix-conversations',JSON.stringify(conversations));
+  localStorage.setItem('powerbrix-active-chat',currentChat ?? '');
+}
+
+function saveConversation() {
+  localStorage.setItem('powerbrix-chat',JSON.stringify(turns.slice(-100)));
+  if (!historyOn() || !turns.length) return;
+  const old = conversations.find(chat => chat.id === currentChat);
+  currentChat ??= crypto.randomUUID();
+  const firstPrompt = turns.find(turn => turn.role === 'user')?.content.trim().replace(/\s+/g,' ');
+  const title = old?.title ?? (firstPrompt?.length > 55 ? firstPrompt.slice(0,55) + '…' : firstPrompt || 'Untitled chat');
+  conversations = [{id:currentChat,title,turns:turns.slice(-100)}, ...conversations.filter(chat => chat.id !== currentChat)];
+  if (drafts.has('draft')) {
+    drafts.set(currentChat,drafts.get('draft'));
+    drafts.delete('draft');
+  }
+  storeHistory();
+}
+
+function openConversation(id) {
+  if (chatBusy()) return;
+  const chat = conversations.find(item => item.id === id);
+  if (id && !chat) return;
+  currentChat = chat?.id ?? null;
+  turns = chat?.turns ?? [];
+  if (!chat) drafts.delete('draft');
+  pendingFiles = [];
+  modelMenuOpen = false;
+  localStorage.setItem('powerbrix-chat',JSON.stringify(turns));
+  if (historyOn()) storeHistory();
+  render();
+  document.querySelector('#prompt')?.focus();
+}
 function tell(message) {
   notice.textContent=String(message?.message||message).replace(/^Error invoking remote method '[^']+': Error: /,'');
   clearTimeout(toastTimer);
@@ -75,7 +162,7 @@ function onboarding(){
 function catalogPanel(rows){
   return '<section class="catalog"><header><div><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+button('folder','Change storage','btn secondary compact',state.pull||busy?'disabled':'')+'</header>'+modelRows(rows)+'<footer>Estimates vary with context and hardware. SSD streaming can run models larger than RAM, provided they fit on your drive.</footer></section>';
 }
-const nav=[['chat','AI Chat'],['models','My Models'],['discover','Discover Models']];
+const nav=[['chat','AI Chat'],['plugins','Plugins'],['models','My Models'],['discover','Discover Models']];
 const engineLabels={stopped:'Engine Stopped',loading:'Model loading',running:'Engine Running'};
 function updateEngineStatus(status) {
   const indicator=document.querySelector('#engine-status');
@@ -85,15 +172,12 @@ function updateEngineStatus(status) {
   indicator.querySelector('span').textContent=engineLabels[status];
 }
 function sidebar() {
-  const toggleLabel = sidebarCollapsed ? 'Pin sidebar open' : 'Collapse sidebar';
   const statusLabel = engineLabels[state.engineStatus];
   const rows = nav.map(([key, label]) => button(
     key, icons[key] + '<span>' + label + '</span>', 'navbtn' + (page === key ? ' active' : ''),
     'aria-label="' + label + '" title="' + label + '"' + (page === key ? ' aria-current="page"' : ''),
   )).join('');
   return '<aside class="sidebar" aria-label="Launcher sidebar"><div class="brand">' + svgBrand + '</div>'
-    + button('toggle-sidebar', icons.panel + '<span>' + toggleLabel + '</span>', 'navbtn sidebar-toggle',
-      'aria-label="' + toggleLabel + '" title="' + toggleLabel + '"')
     + '<nav aria-label="Workspace">' + rows + '</nav>'
     + '<div class="sidebar-bottom">'
     + button('setup', icons.chip + '<span>System Setup</span>', 'navbtn',
@@ -102,10 +186,6 @@ function sidebar() {
     + '" title="' + statusLabel + '"><i aria-hidden="true"></i> <span>' + statusLabel + '</span></div></div></aside>';
 }
 
-function updateSidebar() {
-  root.classList.toggle('sidebar-collapsed', page !== 'setup' && sidebarCollapsed);
-  root.classList.toggle('sidebar-await-leave', page !== 'setup' && waitForSidebarExit);
-}
 function chatModels() {
   return state.models.filter(model=>model.local);
 }
@@ -139,53 +219,253 @@ function fileChips(files, removable) {
 }
 
 function chatComposer(active) {
-  if(!active)return '<div class="no-model"><p>Download a model to start chatting.</p>'+button('discover','Discover Models '+icons.arrow,'btn primary')+'</div>';
-  const blocked=pendingFiles.length>0&&!active.filesSupported;
+  const micEnabled = hasPlugin('microphone-typing');
+  const skillsEnabled = hasPlugin('skills');
+  const webEnabled = hasPlugin('internet-search');
+  const blocked=pendingFiles.length>0&&!active?.filesSupported;
   const full=pendingFiles.length>=3;
-  const attachmentLabel=!active.filesSupported?'This model does not support attachments'
+  const attachmentLabel=!active?.filesSupported?'This model does not support attachments'
     :full?'You can attach up to three files':'Attach text, PDF, or Word files';
-  const disabled=!active.filesSupported||full||thinking||choosingFiles;
+  const disabled=!active?.filesSupported||full||chatBusy();
   const paperclip='<span class="attach-control" title="'+attachmentLabel+'">'
     +button('attach',icons.paperclip,'attach-button','aria-label="'+attachmentLabel+'"'+(disabled?' disabled':''))
     +'</span>';
   const send=thinking?button('stop','Stop','btn secondary compact')
-    :'<button class="send" aria-label="Send message"'+(blocked||choosingFiles?' disabled':'')+'>'+icons.send+'</button>';
+    :'<button class="send" aria-label="Send message"'+(!active||blocked||chatBusy()?' disabled':'')+'>'+icons.send+'</button>';
+  const micLabel = voicePhase === 'recording' ? 'Stop recording' : voicePhase ? 'Processing microphone input' : 'Record a prompt';
+  const micIcon = voicePhase === 'recording' ? icons.stop : voicePhase ? '<i class="spinner"></i>' : icons.mic;
+  const mic = micEnabled ? button('dictate',micIcon,'voice-button'+(voicePhase==='recording'?' recording':''),
+    'aria-label="'+micLabel+'" title="'+micLabel+'"'+(chatBusy()&&voicePhase!=='recording'?' disabled':'')) : '';
+  const composerInput = voicePhase === 'recording'
+    ? '<div class="voice-wave" role="status"><span class="sr">Recording prompt</span><svg viewBox="0 0 600 44" preserveAspectRatio="none" aria-hidden="true"><path id="voice-wave" d="M 0 22 L 600 22"></path></svg></div>'
+    : voicePhase ? '<div class="voice-status" role="status">'+(voicePhase==='requesting'?'Starting microphone…':'Transcribing on this device…')+'</div>'
+    : '<label class="sr" for="prompt">Message your local model</label><div class="prompt-editor">'
+      +'<div class="prompt-highlight" aria-hidden="true" hidden></div>'
+      +'<textarea id="prompt" maxlength="12000" rows="2" placeholder="'+(webEnabled?'Ask anything, or type /web-search to search the web for your answer.':'Ask anything')+'"></textarea></div>';
   return '<form id="composer">'+fileChips(pendingFiles,true)
+    +'<div id="prompt-commands" class="prompt-commands" aria-label="Chat commands" hidden><div class="command-prefix">/</div>'
+    +button('command-upload',icons.paperclip+'<span>Upload a file</span>','command-option','data-command="upload"'+(disabled?' disabled':''))
+    +button('command-clear',icons.trash+'<span>/clear</span>','command-option','data-command="clear" title="Clear this chat"')
+    +(webEnabled?button('command-web',icons.globe+'<span>/web-search</span>','command-option','data-command="web-search"'):'')
+    +'</div>'
     +(blocked?'<p class="file-note">Choose a model that can read files, or remove the attachments.</p>':'')
-    +'<label class="sr" for="prompt">Message your local model</label>'
-    +'<textarea id="prompt" maxlength="12000" rows="2" placeholder="Ask anything"></textarea>'
-    +'<div class="compose-actions"><div class="compose-tools">'+paperclip+chatModelPicker(active)+'</div>'+send+'</div></form>'
-    +'<p class="composer-note">Runs on this device · No hosted chat API</p>';
+    +composerInput
+    +'<div class="compose-actions"><div class="compose-tools">'+paperclip+(active?chatModelPicker(active):'')+(skillsEnabled?skillsPicker():'')+'</div><div class="compose-tools">'+mic+send+'</div></div></form>'
+    +(active?'<p class="composer-note">Runs on this device · No hosted chat API</p>'
+      :'<div class="composer-note composer-no-model"><span>Download a model to send your prompt.</span>'
+        +button('discover','Discover Models '+icons.arrow,'textbtn')+'</div>');
+}
+
+function skillsPicker() {
+  const skills = state.skills ?? [];
+  const count = skills.filter(skill => skill.enabled).length;
+  const rows = skills.map(skill => `
+    <li class="skill-row">
+      <span class="skill-name" title="${esc(skill.name)}">${esc(skill.name)}</span>
+      ${button('delete-skill:'+esc(skill.id),icons.trash,'skill-delete','aria-label="Delete '+esc(skill.name)+'" title="Delete skill"')}
+      ${button('toggle-skill:'+esc(skill.id),'<span></span>','skill-switch',
+        'role="switch" aria-checked="'+skill.enabled+'" aria-label="'+esc(skill.name)+'"')}
+    </li>`).join('');
+  return `<div class="skills-picker">
+    ${button('toggle-skills','<span class="skills-count">'+count+'</span><span>Skills</span>'+icons.chevron,'model-pill skills-pill',
+      'id="chat-skills" aria-controls="chat-skills-panel" aria-expanded="'+skillsMenuOpen+'" aria-label="Skills, '+count+' enabled"'+(chatBusy()?' disabled':''))}
+    <section class="skills-panel" id="chat-skills-panel" aria-label="Skills"${skillsMenuOpen?'':' hidden'}>
+      <header><strong>Skills</strong>${button('new-skill',icons.plus,'skill-add','aria-label="Add skill" title="Add skill"')}</header>
+      ${rows?'<ul>'+rows+'</ul>':'<p>No skills yet.</p>'}
+    </section>
+  </div>`;
+}
+
+function chatHistory() {
+  const blocked = chatBusy() ? 'disabled' : '';
+  const items = conversations.map(chat => {
+    const title = esc(chat.title);
+    return `<li class="history-item">
+      ${button('open-chat:'+chat.id,title,'history-chat','title="'+title+'" '+(currentChat===chat.id?'aria-current="true" ':'')+blocked)}
+      <div class="history-actions">
+        ${button('rename-chat:'+chat.id,icons.edit,'history-icon','aria-label="Rename '+title+'" title="Rename chat" '+blocked)}
+        ${button('delete-chat:'+chat.id,icons.trash,'history-icon','aria-label="Delete '+title+'" title="Delete chat" '+blocked)}
+      </div>
+    </li>`;
+  }).join('');
+  return `<aside class="chat-history" aria-label="Chat history">
+    ${button('new',icons.plus+' New chat','btn secondary compact',blocked)}
+    <h2>Chat history</h2>
+    ${items ? '<ul>'+items+'</ul>' : '<p>Your conversations will appear here.</p>'}
+  </aside>`;
+}
+
+function editChat(id, deleting) {
+  const chat = conversations.find(item => item.id === id);
+  if (!chat || chatBusy()) return;
+  const dialog = document.querySelector('#history-dialog');
+  dialog.dataset.id = id;
+  dialog.dataset.deleting = String(deleting);
+  dialog.querySelector('h2').textContent = deleting ? 'Delete chat?' : 'Rename chat';
+  dialog.querySelector('p').textContent = deleting ? '“'+chat.title+'” will be removed from your history.' : '';
+  const input = dialog.querySelector('input');
+  input.value = chat.title;
+  input.closest('label').hidden = deleting;
+  input.disabled = deleting;
+  dialog.querySelector('button[type=submit]').textContent = deleting ? 'Delete' : 'Save';
+  dialog.showModal();
+  if (!deleting) input.select();
+}
+
+function renderSources(sources) {
+  if (!Array.isArray(sources) || !sources.length) return '';
+  return '<div class="web-sources"><strong>Web sources</strong><ol>'+sources.map(source=>
+    '<li>'+button('open-source',esc(source.title),'web-source','data-source-url="'+esc(source.url)+'"')+'</li>').join('')+'</ol></div>';
 }
 
 function chatArea(){
   const active=activeChatModel();
   const messages=turns.map(turn=>'<div class="message '+turn.role+'">'
-    +fileChips(turn.attachments,false)+esc(turn.content)
+    +fileChips(turn.attachments,false)+(turn.webSearch?'<span class="message-web-command">/web-search</span> ':'')+esc(turn.content)
+    +renderSources(turn.sources)
     +(turn.shortened?'<small class="file-note">Used excerpts to fit the model’s context.</small>':'')+'</div>').join('');
   const welcome='<div class="chat-welcome"><span class="tile">'+icons.chat+'</span><h1>What Can I <em>Help With?</em></h1><p>Your models. Your machine. Your conversation.</p></div>';
   const streaming=thinking?'<div class="message assistant streaming" id="stream"><span>'+esc(status)+'</span></div>':'';
-  return '<section class="workspace chat"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>AI Chat</h2></div>'
+  const header = '<header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>AI Chat</h2></div>'
     +button('new',icons.plus+' New chat','btn secondary compact',thinking?'disabled':'')
-    +'</header><div id="chat-scroll" class="chat-scroll">'+(messages||streaming?'<div class="messages">'+messages+streaming+'</div>':welcome)
+    +'</header>';
+  const content = '<section class="chat" aria-label="AI Chat">'+(historyOn()?'':header)+'<div id="chat-scroll" class="chat-scroll">'+(messages||streaming?'<div class="messages">'+messages+streaming+'</div>':welcome)
     +'</div><div class="composer-wrap">'+chatComposer(active)+'</div></section>';
+  return '<main class="workspace chat-layout">'+(historyOn()?chatHistory():'')+content
+    +(historyOn()?'<dialog id="history-dialog" aria-labelledby="history-dialog-title"><form id="history-form"><h2 id="history-dialog-title"></h2><p></p><label>Chat name<input name="title" maxlength="80" required></label><div>'
+      +button('cancel-history','Cancel','btn secondary compact')+'<button type="submit" class="btn primary compact">Save</button></div></form></dialog>':'')+'</main>';
 }
+const plugins = [
+  {id:'chat-history', name:'Chat History', icon:'history', description:'Save and revisit past conversations with your local AI.'},
+  {id:'microphone-typing', name:'Microphone Typing', icon:'mic', description:'Speak into your microphone and turn your words into a prompt.'},
+  {id:'skills', name:'Skills', icon:'skills', description:'Give your models reusable instructions for the tasks you do most often.'},
+  {id:'internet-search', name:'Internet Search', icon:'globe', description:'Find current information on the web and bring sources into your chat.'},
+];
+
+function pluginsPage() {
+  const cards = plugins.map(plugin => `
+    <article class="plugin-card" data-plugin="${esc(plugin.name + ' ' + plugin.description)}">
+      <div class="plugin-icon">${icons[plugin.icon]}</div>
+      <div class="plugin-copy">
+        <h2>${esc(plugin.name)}</h2>
+        <p>${esc(plugin.description)}</p>
+      </div>
+      ${button('install-plugin:'+(plugin.id||''),plugin.id&&hasPlugin(plugin.id)?'Installed':'Install','btn secondary compact',
+        !plugin.id?'disabled title="Installation is unavailable in this preview"':hasPlugin(plugin.id)?'disabled':'')}
+    </article>`).join('');
+
+  return `
+    <main class="workspace plugins">
+      <div class="plugins-content">
+        <header class="plugins-header">
+          <div>
+            <h1>Plugins</h1>
+            <p>Install different plugins to the PowerBrix launcher to make your local AI experience better.</p>
+          </div>
+          <label class="plugin-search">
+            <span class="sr">Search plugins</span>
+            ${icons.search}
+            <input type="search" id="plugin-search" placeholder="Search plugins" value="${esc(pluginQuery)}">
+          </label>
+        </header>
+        <div class="plugin-grid">${cards}</div>
+        <p class="plugin-empty" role="status" hidden>No matching plugins.</p>
+      </div>
+    </main>`;
+}
+
+function filterPlugins() {
+  const query = pluginQuery.trim().toLowerCase();
+  const cards = [...root.querySelectorAll('[data-plugin]')];
+  for (const card of cards) {
+    card.hidden = !card.dataset.plugin.toLowerCase().includes(query);
+  }
+  root.querySelector('.plugin-empty').hidden = cards.some(card => !card.hidden);
+}
+
 function workspace(){
   if(page==='chat')return sidebar()+chatArea();
+  if(page==='plugins')return sidebar()+pluginsPage();
   let local=page==='models';
   return sidebar()+'<main class="workspace listing"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>'+ (local?'My Models':'Discover Models')+'</h2></div>'+button('scan',state.scan?'Analyzing…':'Analyze System','btn secondary compact',state.scan||busy||state.pull||!state.platformSupported||state.platform!==state.actual?'disabled':'')+'</header><div class="listing-content"><h1>'+(local?'Your <em>Local Models.</em>':'Find Your <em>Next Model.</em>')+'</h1><p>'+(local?'Models you have downloaded on the selected drive.':'Compare storage requirements and estimated performance, then pull a model to use it locally.')+'</p>'+(state.scan?'<p class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></p>':'')+(local?'':machine())+catalogPanel(state.models.filter(model=>local?model.local:model.runtime!=='fixture'))+'</div></main>';
 }
 function render(){
-  const draft=document.querySelector('#prompt')?.value;
   const focused=document.activeElement?.id==='prompt';
+  const searchFocused=document.activeElement?.id==='plugin-search';
   const scroll=document.querySelector('#chat-scroll')?.scrollTop;
   root.className=page==='setup'?'app setup-mode':'app desk';
-  updateSidebar();
   root.innerHTML=page==='setup'?onboarding():workspace();
-  if(document.querySelector('#prompt')&&draft)document.querySelector('#prompt').value=draft;
+  if(page==='plugins') {
+    filterPlugins();
+    if(searchFocused) root.querySelector('#plugin-search').focus();
+  }
+  const prompt = document.querySelector('#prompt');
+  if(prompt) {
+    prompt.value = drafts.get(draftKey()) ?? '';
+    updatePromptHighlight(prompt);
+  }
   if(focused)document.querySelector('#prompt')?.focus();
   if(scroll)document.querySelector('#chat-scroll').scrollTop=scroll;
   if(thinking)showStream();
+}
+function drawVoiceWave(time) {
+  if (voicePhase !== 'recording') return;
+  const level = capture.level();
+  volume += (level - volume) * (level > volume ? .26 : .14);
+  const points = [];
+  for (let x = 0; x <= 600; x += 6) {
+    const envelope = Math.sin(Math.PI * x / 600) ** 1.65;
+    const wave = (Math.sin(x / 17 - time / 95) + .4 * Math.sin(x / 9 + time / 115)) / 1.4;
+    points.push(x + ' ' + (22 + wave * envelope * (volume < .012 ? 0 : volume * 19)).toFixed(2));
+  }
+  document.querySelector('#voice-wave')?.setAttribute('d','M '+points.join(' L '));
+  waveRequest = requestAnimationFrame(drawVoiceWave);
+}
+
+async function beginDictation() {
+  if (!hasPlugin('microphone-typing') || chatBusy()) return;
+  setModelMenu(false);
+  voicePhase = 'requesting';
+  capture = new VoiceCapture();
+  render();
+  try {
+    await capture.start(finishDictation);
+    volume = 0;
+    voicePhase = 'recording';
+    render();
+    document.querySelector('[data-action="dictate"]')?.focus();
+    waveRequest = requestAnimationFrame(drawVoiceWave);
+  } catch(error) {
+    voicePhase = '';
+    capture = null;
+    render();
+    document.querySelector('[data-action="dictate"]')?.focus();
+    tell(error.name === 'NotAllowedError' ? 'Allow microphone access in your system settings to record a prompt.' : 'The microphone could not start.');
+  }
+}
+
+async function finishDictation() {
+  if (voicePhase !== 'recording') return;
+  cancelAnimationFrame(waveRequest);
+  voicePhase = 'transcribing';
+  render();
+  try {
+    const wav = await capture.stop();
+    const transcript = wav ? await api.transcribe(wav) : '';
+    if (transcript) {
+      const previous = drafts.get(draftKey())?.trimEnd();
+      drafts.set(draftKey(),(previous ? previous+' '+transcript : transcript).slice(0,12000));
+    } else {
+      tell('No speech detected. Try recording again.');
+    }
+  } catch(error) {
+    tell(error);
+  } finally {
+    capture = null;
+    voicePhase = '';
+    render();
+    document.querySelector('#prompt')?.focus();
+  }
 }
 function showStream(){
   const node=document.querySelector('#stream');
@@ -198,6 +478,7 @@ async function perform(action,...args){
   catch(error){tell(error);}
 }
 function setModelMenu(open, focusToggle = false) {
+  if(open) setSkillsMenu(false);
   modelMenuOpen = open;
   const toggle = document.querySelector('#chat-model');
   const menu = document.querySelector('#chat-model-options');
@@ -208,8 +489,75 @@ function setModelMenu(open, focusToggle = false) {
   else if (focusToggle) toggle.focus();
 }
 
+function setSkillsMenu(open, focusToggle = false) {
+  if(open) setModelMenu(false);
+  skillsMenuOpen = open;
+  document.querySelector('#chat-skills')?.setAttribute('aria-expanded',String(open));
+  const panel = document.querySelector('#chat-skills-panel');
+  if(panel) panel.hidden = !open;
+  if(focusToggle) document.querySelector('#chat-skills')?.focus();
+}
+
+function updatePromptHighlight(input) {
+  const overlay = input.parentElement.querySelector('.prompt-highlight');
+  const token = hasPlugin('internet-search') && webCommand.exec(input.value);
+  overlay.hidden = !token;
+  input.classList.toggle('has-web-command',Boolean(token));
+  if (!token) return;
+  const start = token.index + token[1].length;
+  const end = token.index + token[0].length;
+  overlay.innerHTML = esc(input.value.slice(0,start))+'<mark>'+esc(input.value.slice(start,end))+'</mark>'+esc(input.value.slice(end))+'\n';
+  overlay.style.width = input.clientWidth+'px';
+  overlay.scrollTop = input.scrollTop;
+}
+
+function commandAtCursor(input) {
+  return /(^|\s)(\/[a-z-]*)$/i.exec(input.value.slice(0,input.selectionStart));
+}
+
+function showCommands(input) {
+  const menu = document.querySelector('#prompt-commands');
+  if (!menu) return;
+  const command = commandAtCursor(input);
+  const prefix = command?.[2].slice(1).toLowerCase();
+  const options = [...menu.querySelectorAll('.command-option')];
+  for (const option of options) option.hidden = prefix != null && !option.dataset.command.startsWith(prefix);
+  menu.hidden = chatBusy() || !command || (prefix === 'web-search' || prefix === 'clear')
+    || options.every(option=>option.hidden);
+  commandIndex = 0;
+  selectCommand(menu,0);
+}
+
+function selectCommand(menu, delta) {
+  const options = [...menu.querySelectorAll('.command-option:not(:disabled):not([hidden])')];
+  if (!options.length) return null;
+  commandIndex = (commandIndex + delta + options.length) % options.length;
+  options.forEach((option,index)=>option.classList.toggle('command-selected',index===commandIndex));
+  return options[commandIndex];
+}
+
+function applyCommand(search) {
+  const input = document.querySelector('#prompt');
+  if (!input) return;
+  const command = commandAtCursor(input);
+  let content = input.value;
+  if (command) content = content.slice(0,command.index+command[1].length) + content.slice(input.selectionStart);
+  if (search) {
+    content = '/web-search ' + content.replace(webCommand,'$1').trimStart();
+  }
+  input.value = content;
+  drafts.set(draftKey(),content);
+  document.querySelector('#prompt-commands').hidden = true;
+  input.focus();
+  input.setSelectionRange(content.length,content.length);
+  updatePromptHighlight(input);
+}
+
 document.addEventListener('pointerdown',event=>{
   if (modelMenuOpen && !event.target.closest('.model-picker')) setModelMenu(false);
+  if (skillsMenuOpen && !event.target.closest('.skills-picker, #skill-dialog')) setSkillsMenu(false);
+  const menu = document.querySelector('#prompt-commands');
+  if (menu && !event.target.closest('#prompt-commands, #prompt')) menu.hidden = true;
 });
 root.addEventListener('focusout',event=>{
   if(modelMenuOpen&&event.target.closest('.model-picker')&&!event.relatedTarget?.closest('.model-picker'))setModelMenu(false);
@@ -217,19 +565,55 @@ root.addEventListener('focusout',event=>{
 
 root.addEventListener('click',async event=>{
   const el=event.target.closest('[data-action]');if(!el)return;
-  const [action,value]=el.dataset.action.split(':');
-  if(action==='toggle-sidebar'){
-    sidebarCollapsed = !sidebarCollapsed;
-    localStorage.setItem('powerbrix-sidebar-collapsed', String(sidebarCollapsed));
-    waitForSidebarExit = sidebarCollapsed && event.detail > 0 && el.closest('.sidebar').matches(':hover');
-    updateSidebar();
-    const label = sidebarCollapsed ? 'Pin sidebar open' : 'Collapse sidebar';
-    el.querySelector('span').textContent = label;
-    el.setAttribute('aria-label', label);
-    el.title = label;
+  let [action,value]=el.dataset.action.split(':');
+  if (action === 'open-source') {await perform('openWebSource',el.dataset.sourceUrl);return;}
+  if (action === 'command-clear') {clearCurrentChat();return;}
+  if (action === 'command-web') {applyCommand(true);return;}
+  if (action === 'command-upload') {applyCommand(false);action='attach';}
+  if (action === 'install-plugin') {
+    el.disabled = true;
+    try {
+      const next = await api.installPlugin(value);
+      state.plugins = next.plugins;
+      if (value === 'chat-history') readHistory();
+      render();
+    } catch(error) {
+      tell(error);
+      el.disabled = false;
+    }
     return;
   }
-  if(['chat','models','discover','setup'].includes(action)){modelMenuOpen=false;page=action;render();return;}
+  if (action === 'dictate') {
+    if (voicePhase === 'recording') await finishDictation();
+    else await beginDictation();
+    return;
+  }
+  if (voicePhase) return;
+  if (action === 'toggle-skills') {setSkillsMenu(!skillsMenuOpen);return;}
+  if (action === 'new-skill') {openSkillDialog();return;}
+  if (action === 'toggle-skill' || action === 'delete-skill') {
+    el.disabled = true;
+    try {
+      const deleting = action === 'delete-skill';
+      const result = await api.manageSkill(deleting?'delete':'toggle',{id:value,enabled:el.getAttribute('aria-checked')!=='true'});
+      state.skills = result.skills;
+      render();
+      (deleting ? document.querySelector('[data-action="new-skill"]')
+        : document.querySelector(`[data-action="${action}:${value}"]`))?.focus();
+    } catch (error) {tell(error);el.disabled=false;}
+    return;
+  }
+  if (action === 'open-chat') {openConversation(value);return;}
+  if (action === 'rename-chat' || action === 'delete-chat') {editChat(value,action==='delete-chat');return;}
+  if (action === 'cancel-history') {document.querySelector('#history-dialog').close();return;}
+  if(nav.some(([key])=>key===action)||action==='setup'){
+    modelMenuOpen=false;
+    skillsMenuOpen=false;
+    page=action;
+    render();
+    if(event.detail===0) root.querySelector(`.sidebar [data-action="${action}"]`)?.focus();
+    return;
+  }
   if(action==='toggle-model-menu'){setModelMenu(!modelMenuOpen);return;}
   if(action==='chat-model'){
     setModelMenu(false);
@@ -255,17 +639,44 @@ root.addEventListener('click',async event=>{
   if(action==='scan'){busy=true;render();await perform('scan');busy=false;render();return;}
   if(action==='pull'){state.pull={id:value};render();const next=await perform('pull',value);state.pull=next?.pull;render();return;}
   if(action==='use'){if(await perform('select',value)){page='chat';render();}return;}
-  if(action==='new'){turns=[];pendingFiles=[];modelMenuOpen=false;localStorage.setItem('powerbrix-chat','[]');render();document.querySelector('#prompt')?.focus();return;}
+  if(action==='new'){openConversation(null);return;}
   if(['pause','stop','folder'].includes(action))await perform(action);
 });
-root.addEventListener('pointerout',event=>{
-  if (!waitForSidebarExit) return;
-  const sidebar = event.target.closest('.sidebar');
-  if (!sidebar || sidebar.contains(event.relatedTarget)) return;
-  waitForSidebarExit = false;
-  updateSidebar();
+root.addEventListener('input',event=>{
+  if(event.target.id==='prompt'){
+    drafts.set(draftKey(),event.target.value);
+    const send = document.querySelector('#composer .send');
+    const active = activeChatModel();
+    if (send) send.disabled = chatBusy() || (!isClearCommand(event.target.value)
+      && (!active || (pendingFiles.length > 0 && !active.filesSupported)));
+    updatePromptHighlight(event.target);
+    if (!event.isComposing) showCommands(event.target);
+  }
+  if(event.target.id!=='plugin-search')return;
+  pluginQuery=event.target.value;
+  filterPlugins();
+});
+root.addEventListener('scroll',event=>{
+  if (event.target.id==='prompt') event.target.previousElementSibling.scrollTop = event.target.scrollTop;
+},true);
+window.addEventListener('resize',()=>{
+  const input=document.querySelector('#prompt');
+  if(input)updatePromptHighlight(input);
 });
 root.addEventListener('keydown',event=>{
+  const commands = document.querySelector('#prompt-commands:not([hidden])');
+  if (commands && !event.isComposing) {
+    if (event.key === 'Escape') {
+      event.preventDefault();commands.hidden=true;document.querySelector('#prompt')?.focus();return;
+    }
+    if (event.target.id === 'prompt' && ['ArrowUp','ArrowDown','Enter'].includes(event.key) && !event.shiftKey) {
+      event.preventDefault();
+      const selected = selectCommand(commands,event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:0);
+      if(event.key==='Enter')selected?.click();
+      return;
+    }
+  }
+  if(event.key==='Escape'&&skillsMenuOpen){event.preventDefault();setSkillsMenu(false,true);return;}
   if(event.key==='Escape'&&modelMenuOpen){event.preventDefault();setModelMenu(false,true);return;}
   const direction=event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:0;
   if(event.target.id==='chat-model'&&direction){event.preventDefault();setModelMenu(true);return;}
@@ -279,24 +690,53 @@ root.addEventListener('keydown',event=>{
   if(event.target.id==='prompt'&&event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();document.querySelector('#composer')?.requestSubmit();}
 });
 root.addEventListener('submit',async event=>{
+  if (event.target.id === 'history-form') {
+    event.preventDefault();
+    const dialog = event.target.closest('dialog');
+    const chat = conversations.find(item => item.id === dialog.dataset.id);
+    if (!chat || chatBusy()) return;
+    if (dialog.dataset.deleting === 'true') {
+      conversations = conversations.filter(item => item !== chat);
+      drafts.delete(chat.id);
+      dialog.close();
+      if (chat.id === currentChat) {
+        openConversation(conversations[0]?.id ?? null);
+        return;
+      }
+    } else {
+      const input = event.target.elements.title;
+      const title = input.value.trim();
+      if (!title) {input.focus();return;}
+      chat.title = title;
+      dialog.close();
+    }
+    storeHistory();
+    render();
+    document.querySelector('[data-action="new"]')?.focus();
+    return;
+  }
   if(event.target.id!=='composer')return;
   event.preventDefault();
-  if(thinking||choosingFiles)return;
-  const active=activeChatModel();
-  if(!active||pendingFiles.length&&!active.filesSupported)return;
+  if(chatBusy())return;
   const input=document.querySelector('#prompt');
   const typed=input.value.trim();
+  if (isClearCommand(typed)) {clearCurrentChat();return;}
+  const active=activeChatModel();
+  if(!active||pendingFiles.length&&!active.filesSupported)return;
   if(!typed&&!pendingFiles.length)return;
+  const useWebSearch = hasPlugin('internet-search') && webCommand.test(typed);
+  const query = useWebSearch ? typed.replace(webCommand,'$1').trim() : typed;
+  if (useWebSearch && !query) {tell('Type a question after /web-search.');return;}
   const attachments=pendingFiles;
-  const content=typed||'Summarize the attached files.';
-  input.value='';pendingFiles=[];modelMenuOpen=false;
-  turns.push({role:'user',content,attachments});thinking=true;status='Starting local model…';answer='';reasoning='';render();
+  const content=query||'Summarize the attached files.';
+  drafts.delete(draftKey());pendingFiles=[];modelMenuOpen=false;skillsMenuOpen=false;
+  turns.push({role:'user',content,attachments,webSearch:useWebSearch});thinking=true;status=useWebSearch?'Searching the web…':'Starting local model…';answer='';reasoning='';render();
   const history=turns.slice(-35).map(turn=>({role:turn.role,content:turn.content,
     files:(turn.attachments||[]).map(file=>file.id)}));
-  const data=await perform('chat',active.id,history);
-  if(data?.answer||answer)turns.push({role:'assistant',content:data?.answer||answer,shortened:data?.shortened});
-  else if(!data?.stopped){turns.pop();pendingFiles=attachments;const draft=document.querySelector('#prompt');if(draft)draft.value=typed;}
-  thinking=false;localStorage.setItem('powerbrix-chat',JSON.stringify(turns.slice(-100)));render();
+  const data=await perform('chat',active.id,history,useWebSearch);
+  if(data?.answer||answer)turns.push({role:'assistant',content:data?.answer||answer,shortened:data?.shortened,sources:data?.sources});
+  else if(!data?.stopped){turns.pop();pendingFiles=attachments;drafts.set(draftKey(),typed);}
+  thinking=false;saveConversation();render();
   const area=document.querySelector('#chat-scroll');if(area)area.scrollTop=area.scrollHeight;
   document.querySelector('#prompt')?.focus();
 });
@@ -312,4 +752,62 @@ api.onScan(value=>{
   if(label&&value)label.textContent=value;else render();
 });
 api.onPull(value=>{if(state){state.pull=value;render();}});
-api.state().then(data=>{state=data;page=state.onboarded?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
+api.state().then(data=>{state=data;if(historyOn())readHistory();page=demo?'plugins':state.onboarded?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
+
+const skillDialog = document.querySelector('#skill-dialog');
+const skillForm = document.querySelector('#skill-form');
+const skillError = document.querySelector('#skill-error');
+let skillSource = 'text';
+
+function setSkillSource(mode) {
+  skillSource = mode;
+  for (const button of skillForm.querySelectorAll('[data-skill-mode]')) {
+    button.setAttribute('aria-pressed',String(button.dataset.skillMode === mode));
+  }
+  for (const field of skillForm.querySelectorAll('[data-skill-input]')) {
+    field.hidden = field.dataset.skillInput !== mode;
+  }
+  skillError.textContent = '';
+}
+
+function openSkillDialog() {
+  if (chatBusy()) return;
+  skillForm.reset();
+  document.querySelector('#skill-filename').textContent = '';
+  setSkillSource('text');
+  skillDialog.showModal();
+}
+
+skillForm.addEventListener('click',event=>{
+  const mode = event.target.closest('[data-skill-mode]')?.dataset.skillMode;
+  if(mode) setSkillSource(mode);
+});
+document.querySelector('#choose-skill-file').addEventListener('click',()=>skillForm.elements.markdown.click());
+skillForm.elements.markdown.addEventListener('change',()=>{
+  document.querySelector('#skill-filename').textContent = skillForm.elements.markdown.files[0]?.name ?? '';
+  skillError.textContent = '';
+});
+document.querySelector('#cancel-skill').addEventListener('click',()=>skillDialog.close());
+skillDialog.addEventListener('close',()=>document.querySelector('[data-action="new-skill"]')?.focus());
+skillForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const saveButton = event.submitter ?? skillForm.querySelector('[type="submit"]');
+  if (saveButton.disabled) return;
+  saveButton.disabled = true;
+  skillError.textContent = '';
+  try {
+    let content = skillForm.elements.content.value;
+    if (skillSource === 'file') {
+      const file = skillForm.elements.markdown.files[0];
+      if (!file || !/\.md$/i.test(file.name)) throw Error('Choose a Markdown (.md) file.');
+      if (file.size > 64000) throw Error('Choose a Markdown file under 64 KB.');
+      content = await file.text();
+    }
+    const result = await api.manageSkill('create',{name:skillForm.elements.name.value,content});
+    state.skills = result.skills;
+    skillDialog.close();
+    render();
+  } catch (error) {
+    skillError.textContent = error.message.replace(/^Error invoking remote method '[^']+': Error: /,'');
+  } finally {saveButton.disabled = false;}
+});
