@@ -1,0 +1,51 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs/promises');
+const path=require('node:path');
+const os=require('node:os');
+const {createHash}=require('node:crypto');
+const http=require('node:http');
+const {downloadFile}=require('../downloads.cjs');
+const {GiB,pickModels}=require('../device.cjs');
+const catalog=require('../catalog.json');
+
+test('resume a partial model, verify it, and reject a bad SHA',async t=>{
+  const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'pbx-test-'));
+  const contents=Buffer.from('Example GGUF download');
+  const sha256=createHash('sha256').update(contents).digest('hex');
+  const ranges=[];
+  const server=http.createServer((req,res)=>{
+    const start=Number(req.headers.range?.match(/bytes=(\d+)-/)?.[1]||0);
+    ranges.push(start);
+    if(start)res.writeHead(206,{'Content-Range':'bytes '+start+'-'+(contents.length-1)+'/'+contents.length});
+    res.end(contents.subarray(start));
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(async()=>{await new Promise(resolve=>server.close(resolve));await fs.rm(tmp,{recursive:true,force:true});});
+  const url='http://127.0.0.1:'+server.address().port;
+  const target=path.join(tmp,'model.gguf');
+  await fs.writeFile(target+'.part',contents.subarray(0,5));
+  await downloadFile(url,target,{bytes:contents.length,sha256},AbortSignal.timeout(3000));
+  assert.deepEqual(await fs.readFile(target),contents);
+  assert.deepEqual(ranges,[5]);
+  const corrupt=path.join(tmp,'corrupt.gguf');
+  await assert.rejects(downloadFile(url,corrupt,{bytes:contents.length,sha256:'0'.repeat(64)},AbortSignal.timeout(3000)),/Checksum mismatch/);
+  await assert.rejects(fs.stat(corrupt),{code:'ENOENT'});
+  await assert.rejects(fs.stat(corrupt+'.part'),{code:'ENOENT'});
+});
+test('capacity restricts pulls without hiding generation estimates',()=>{
+  const machine={memory_bytes:24*GiB,memory_read_Bps:75e9,models_drive:{read_Bps:3.5e9}};
+  const report={machine,estimates:[{model:catalog.find(model=>model.id==='qwen35').repo,decode_tokens_per_second:2}]};
+  const rows=pickModels(catalog,report,16*GiB);
+  assert.equal(rows.length,catalog.length);
+  assert.equal(rows.find(m=>m.id==='qwen35').speed,2);
+  assert.equal(rows.find(m=>m.id==='qwen35').pullable,false);
+  assert.equal(rows.find(m=>m.id==='qwenflash').source,'PowerBrix estimate');
+  assert.equal(rows.find(m=>m.id==='gemma').pullable,true);
+  const resumed=pickModels(catalog,report,16*GiB,new Set(),new Map([['qwen35',10*GiB]]));
+  assert.equal(resumed.find(m=>m.id==='qwen35').pullable,true);
+  const lowRAM=pickModels(catalog,{...report,machine:{...machine,memory_bytes:8*GiB}},600*GiB);
+  assert.equal(lowRAM.find(m=>m.id==='gptoss').fit,'Needs more memory');
+  assert.equal(lowRAM.find(m=>m.id==='muse').pullable,true);
+  assert.equal(lowRAM.find(m=>m.id==='gemma3-1b').pullable,true);
+});

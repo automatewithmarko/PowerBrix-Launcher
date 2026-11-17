@@ -1,0 +1,109 @@
+name: Launcher release
+
+on:
+  push:
+    branches: [main]
+    paths: [new-update.json]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: launcher-release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    # Public releases provide the anonymous update feed.
+    if: github.event.repository.private == false && github.repository == 'automatewithmarko/PowerBrix-Launcher'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+          LATEST="$latest" node - <<'JS'
+          const fs = require('node:fs');
+          const {compareVersions} = require('./updater.cjs');
+          const {version,name} = require('./new-update.json');
+          if (typeof name !== 'string' || !name.trim() || name.length > 100) throw Error('Supply a valid update name.');
+          if (compareVersions(version,process.env.LATEST.replace(/^v/,'')) <= 0) throw Error('Use a version higher than the latest release.');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,'version='+version+'\n');
+          JS
+
+  build:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - runner: macos-26
+            platform: mac
+            asset: PowerBrix-Launcher-macOS-arm64.dmg
+          - runner: windows-2025
+            platform: win
+            asset: PowerBrix-Launcher-Windows-x64-Setup.exe
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm version "${{ needs.version.outputs.version }}" --no-git-tag-version --allow-same-version
+      - run: npm ci
+      - run: npm test
+      - if: matrix.platform == 'mac'
+        run: pipx install dmgbuild==2.0.0
+      - if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          if (!(Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) {
+            choco install nsis -y --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          "${env:ProgramFiles(x86)}\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - run: npm run package:${{ matrix.platform }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: launcher-${{ matrix.platform }}
+          path: build/${{ matrix.asset }}
+          if-no-files-found: error
+
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: launcher-*
+          merge-multiple: true
+          path: release
+      - name: Bundle source and installers
+        run: |
+          mkdir -p bundle/PowerBrix-Launcher/installers
+          git archive HEAD | tar -x -C bundle/PowerBrix-Launcher
+          cp release/*.dmg release/*.exe bundle/PowerBrix-Launcher/installers/
+          (cd bundle/PowerBrix-Launcher && npm version "${{ needs.version.outputs.version }}" --no-git-tag-version --allow-same-version)
+          (cd bundle && zip -qr ../release/PowerBrix-Launcher-Source-and-Installers.zip PowerBrix-Launcher)
+      - name: Publish the verified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          name=$(node -p "require('./new-update.json').name.trim()")
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "$name" --notes "$name" --draft
+          gh release upload "v$VERSION" new-update.json release/*
+          gh release edit "v$VERSION" --draft=false --latest

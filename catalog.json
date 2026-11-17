@@ -1,0 +1,457 @@
+[
+  {
+    "id": "gemma",
+    "name": "Gemma 4 E4B",
+    "vendor": "Google",
+    "repo": "google/gemma-4-E4B-it-qat-q4_0-gguf",
+    "quantization": "Q4_0",
+    "revision": "4b4a2c1d584be7264f87aac328a1bc739ce81b6c",
+    "runtime": "gemma",
+    "files": [
+      {
+        "path": "gemma-4-E4B_q4_0-it.gguf",
+        "bytes": 5154941280,
+        "sha256": "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee"
+      }
+    ],
+    "logo": "gemma"
+  },
+  {
+    "id": "qwen35",
+    "name": "Qwen3.6 35B A3B",
+    "vendor": "Qwen",
+    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "quantization": "UD-Q4_K_XL",
+    "revision": "a483e9e6cbd595906af30beda3187c2663a1118c",
+    "runtime": "ssd",
+    "files": [
+      {
+        "path": "Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf",
+        "bytes": 22360456160,
+        "sha256": "707a55a8a4397ecde44de0c499d3e68c1ad1d240d1da65826b4949d1043f4450"
+      }
+    ],
+    "logo": "qwen"
+  },
+  {
+    "id": "qwen27",
+    "name": "Qwen3.6 27B",
+    "vendor": "Qwen",
+    "repo": "unsloth/Qwen3.6-27B-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "82d411acf4a06cfb8d9b073a5211bf410bfc29bf",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "Qwen3.6-27B-Q4_K_M.gguf",
+        "bytes": 16817244384,
+        "sha256": "5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0"
+      }
+    ],
+    "logo": "qwen"
+  },
+  {
+    "id": "gptoss",
+    "name": "GPT-OSS 20B",
+    "vendor": "OpenAI",
+    "repo": "ggml-org/gpt-oss-20b-GGUF",
+    "quantization": "MXFP4",
+    "revision": "41e8a94d15d62070b36cf4553a0250717ecf46b8",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "gpt-oss-20b-MXFP4.gguf",
+        "bytes": 12109566624,
+        "sha256": "27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901"
+      }
+    ],
+    "logo": "openai"
+  },
+  {
+    "id": "qwenflash",
+    "name": "Qwen3.8 Flash Next",
+    "vendor": "Qwen",
+    "repo": "bartowski/Qwen3.8-Flash-Next-GGUF",
+    "quantization": "IQ4_XS",
+    "revision": "db3a185731e162be9ffa4d52d20d7509939e60e8",
+    "runtime": "ssd",
+    "files": [
+      {
+        "path": "Qwen3.8-Flash-Next-IQ4_XS/Qwen3.8-Flash-Next-IQ4_XS-00001-of-00003.gguf",
+        "bytes": 39662884992,
+        "sha256": "fc77e3c8ea2b43f7a8a644b54e4edb646cabc139b7ff16e22840d509d2fd89e6"
+      },
+      {
+        "path": "Qwen3.8-Flash-Next-IQ4_XS/Qwen3.8-Flash-Next-IQ4_XS-00002-of-00003.gguf",
+        "bytes": 39599783328,
+        "sha256": "43e84f8e3a211be8bb56f0d4d95f9bab2a98198298297f7f944426f347cb4083"
+      },
+      {
+        "path": "Qwen3.8-Flash-Next-IQ4_XS/Qwen3.8-Flash-Next-IQ4_XS-00003-of-00003.gguf",
+        "bytes": 18419167360,
+        "sha256": "a806a0382ea6f043b9180baa12956ee8aa2121fdd385dee0d613727e1ddd08b5"
+      }
+    ],
+    "logo": "qwen"
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek V4.1 Flash",
+    "vendor": "DeepSeek",
+    "repo": "mrfakename/DeepSeek-V4.1-Flash-1017-GGUF",
+    "quantization": "Q8_0",
+    "revision": "1df54e7d1b1e442051ad393ce871870a929f243e",
+    "runtime": "ssd",
+    "files": [
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00001-of-00010.gguf",
+        "bytes": 43322444352,
+        "sha256": "1344d6af67cad84abe93da0f454a6bfa8aef3ec0022f71906e9edb40f23812b3"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00002-of-00010.gguf",
+        "bytes": 43316676000,
+        "sha256": "b93249203c3bde33d7738a50ab976879514d49f5b9c3564f6270dee54142418f"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00003-of-00010.gguf",
+        "bytes": 43316676032,
+        "sha256": "96e5fe684c77232b39bea4ca5e9d49fc0fb2082ea2bde93b5a9a08a4a6363284"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00004-of-00010.gguf",
+        "bytes": 43316676032,
+        "sha256": "0a529b1909a0693f3b6c58804424ce27d190d616f19f7c45a3ad62533e943b7c"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00005-of-00010.gguf",
+        "bytes": 43316676032,
+        "sha256": "812b6f08b3b87c20ea2a7e6f8afc946b6b99471404bcb172dd943f7a82ade95d"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00006-of-00010.gguf",
+        "bytes": 43316676032,
+        "sha256": "ee1ba2a0d5b7f89e1e70929f4773bf8e19310a66dfa270af3269711cd5f2c51f"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00007-of-00010.gguf",
+        "bytes": 28877784064,
+        "sha256": "89c73265da70f074b0c7ddcbdf86f151cb27d2258ad2dee99c28263d40ca0612"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00008-of-00010.gguf",
+        "bytes": 104449677888,
+        "sha256": "096b13ad2b1875e043053d68cf4cd2cc1f54f4f5df9b07629c4f90be7b776559"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00009-of-00010.gguf",
+        "bytes": 104452537696,
+        "sha256": "cdcd2cdd1657cd60354fdb63dc899731665448ed53229dfdd32dd2ca1d517945"
+      },
+      {
+        "path": "Q8_0/DeepSeek-V4.1-Flash-1017-Q8_0-00010-of-00010.gguf",
+        "bytes": 10268402880,
+        "sha256": "cb9325b45fc4c585caa83c24f2f6985b7a872ec0546e4fe5af98456631d0c33c"
+      }
+    ],
+    "logo": "deepseek"
+  },
+  {
+    "id": "muse",
+    "name": "Muse Spark Open",
+    "vendor": "Meta",
+    "repo": "unsloth/Muse-Spark-Open-816B-A42B-GGUF",
+    "quantization": "UD-Q4_K_XL",
+    "revision": "c00670568b6ce5e56a247f67091247984df2a01e",
+    "runtime": "ssd",
+    "files": [
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00001-of-00012.gguf",
+        "bytes": 13079896,
+        "sha256": "c90581ff1a2300f9d3a07e13b579db4cbbf80470e1a663952da532051ea68bd0"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00002-of-00012.gguf",
+        "bytes": 48821654240,
+        "sha256": "62b388847e5f7dc8b3db9c342c4b287c8cde725501fcec6e0116dbb081064e6f"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00003-of-00012.gguf",
+        "bytes": 48159816768,
+        "sha256": "fb428a0794f574cd4f5ec887e33d6d25c86b5d2521b99d7d29c025a976bb5883"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00004-of-00012.gguf",
+        "bytes": 48710081088,
+        "sha256": "b0adcb459fff43f5859f376b6f6bb8b5a755c1dc85c8b9c91f3bad791e30237c"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00005-of-00012.gguf",
+        "bytes": 48619544832,
+        "sha256": "5fa787fe1596672a1767c5ac83d00544f9726b6b78edb131deef021fb7391b2c"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00006-of-00012.gguf",
+        "bytes": 48533609056,
+        "sha256": "7503af6cb91f188ab008a732bc1101e5b2df77da7ffc0e36517224f002e36026"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00007-of-00012.gguf",
+        "bytes": 49262029536,
+        "sha256": "c92b1c27d5e231891545bb179a78ae1dc85ad9e9472c119e38849d69259b7244"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00008-of-00012.gguf",
+        "bytes": 48498045888,
+        "sha256": "fab158c0c9aa72e072b8bb76279f2528110fbe85795dde08c96b3a92c602d508"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00009-of-00012.gguf",
+        "bytes": 48641407136,
+        "sha256": "3cf143a28fe33fe7a2b526cab76260f81495c343aa5650c8bdc76206c4f13399"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00010-of-00012.gguf",
+        "bytes": 48541840960,
+        "sha256": "ccd4b184a35f89143ec948284baf42d3a6fecca417592480b6c28b49463c968a"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00011-of-00012.gguf",
+        "bytes": 48567958144,
+        "sha256": "abd36807d9de33b23b6dfde30a1e9c56113e751977c9bff36c1edc2a4bf5deec"
+      },
+      {
+        "path": "UD-Q4_K_XL/Muse-Spark-Open-816B-A42B-UD-Q4_K_XL-00012-of-00012.gguf",
+        "bytes": 19133163744,
+        "sha256": "5886fe256da3cb8588370de36754f73b844b22b8f3e6ecabf8f9ce85f510e20b"
+      }
+    ],
+    "logo": "muse"
+  },
+  {
+    "id": "gemma3-1b",
+    "name": "Gemma 3 1B Instruct",
+    "vendor": "Google",
+    "logo": "gemma",
+    "repo": "ggml-org/gemma-3-1b-it-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "f9c28bcd85737ffc5aef028638d3341d49869c27",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "gemma-3-1b-it-Q4_K_M.gguf",
+        "bytes": 806058240,
+        "sha256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135"
+      }
+    ]
+  },
+  {
+    "id": "llama32-3b",
+    "name": "Llama 3.2 3B Instruct",
+    "vendor": "Meta",
+    "logo": "meta",
+    "repo": "unsloth/Llama-3.2-3B-Instruct-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "e7d0997e49c9cb00d88b4c1a6a16aa894b0bbc31",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        "bytes": 2019377600,
+        "sha256": "6c99cc00ae910f6a532a80022cb4bc1939094527a089c29294b841c0bd87f74d"
+      }
+    ]
+  },
+  {
+    "id": "phi4-mini",
+    "name": "Phi-4 Mini Instruct",
+    "vendor": "Microsoft",
+    "logo": "microsoft",
+    "repo": "bartowski/microsoft_Phi-4-mini-instruct-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "7ff82c2aaa4dde30121698a973765f39be5288c0",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "microsoft_Phi-4-mini-instruct-Q4_K_M.gguf",
+        "bytes": 2491874688,
+        "sha256": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2"
+      }
+    ]
+  },
+  {
+    "id": "mistral7b",
+    "name": "Mistral 7B Instruct v0.3",
+    "vendor": "Mistral AI",
+    "logo": "mistral",
+    "repo": "bartowski/Mistral-7B-Instruct-v0.3-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "61fd4167fff3ab01ee1cfe0da183fa27a944db48",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
+        "bytes": 4372812000,
+        "sha256": "1270d22c0fbb3d092fb725d4d96c457b7b687a5f5a715abe1e818da303e562b6"
+      }
+    ]
+  },
+  {
+    "id": "qwen25-coder7b",
+    "name": "Qwen2.5 Coder 7B Instruct",
+    "vendor": "Qwen",
+    "logo": "qwen",
+    "repo": "Qwen/Qwen2.5-Coder-7B-Instruct-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "13fb94bfda8c8cf22497dc57b78f391a9acb426a",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "qwen2.5-coder-7b-instruct-q4_k_m.gguf",
+        "bytes": 4683073536,
+        "sha256": "509287f78cb4d4cf6b3843734733b914b2c158e43e22a7f4bf5e963800894d3c"
+      }
+    ]
+  },
+  {
+    "id": "deepseek-r1-7b",
+    "name": "DeepSeek R1 Distill Qwen 7B",
+    "vendor": "DeepSeek",
+    "logo": "deepseek",
+    "repo": "unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "097680e4eed7a83b3df6b0bb5e5134099cadf1b0",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "DeepSeek-R1-Distill-Qwen-7B-Q4_K_M.gguf",
+        "bytes": 4683073248,
+        "sha256": "78272d8d32084548bd450394a560eb2d70de8232ab96a725769b1f9171235c1c"
+      }
+    ]
+  },
+  {
+    "id": "granite33-8b",
+    "name": "IBM Granite 3.3 8B Instruct",
+    "vendor": "IBM",
+    "logo": "ibm",
+    "repo": "ibm-granite/granite-3.3-8b-instruct-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "e40e9dd739c7be00fa965c16ce167088190ce114",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "granite-3.3-8b-instruct-Q4_K_M.gguf",
+        "bytes": 4942873344,
+        "sha256": "77bcee066a76dcdd10d0d123c87e32c8ec2c74e31b6ffd87ebee49c9ac215dca"
+      }
+    ]
+  },
+  {
+    "id": "qwen3-8b",
+    "name": "Qwen3 8B",
+    "vendor": "Qwen",
+    "logo": "qwen",
+    "repo": "Qwen/Qwen3-8B-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "7c41481f57cb95916b40956ab2f0b139b296d974",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "Qwen3-8B-Q4_K_M.gguf",
+        "bytes": 5027783488,
+        "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
+      }
+    ]
+  },
+  {
+    "id": "huihui-qwen3-06b",
+    "name": "Huihui Qwen3 0.6B v2",
+    "vendor": "Qwen",
+    "logo": "qwen",
+    "variant": "Abliterated",
+    "repo": "mradermacher/Huihui-Qwen3-0.6B-abliterated-v2-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "a81ddae27343c9bfacfcd5e6252eb8b3ed41ed43",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "Huihui-Qwen3-0.6B-abliterated-v2.Q4_K_M.gguf",
+        "bytes": 396701280,
+        "sha256": "c11db99f54750f60dae1c6a429a72055ff5d5a04684a06392075d8441354afba"
+      }
+    ]
+  },
+  {
+    "id": "mlabonne-qwen3-17b",
+    "name": "mLabonne Qwen3 1.7B",
+    "vendor": "Qwen",
+    "logo": "qwen",
+    "variant": "Abliterated",
+    "repo": "bartowski/mlabonne_Qwen3-1.7B-abliterated-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "fb7311cea48018c704b343c2ccabaa0cbc13f4f3",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "mlabonne_Qwen3-1.7B-abliterated-Q4_K_M.gguf",
+        "bytes": 1107408832,
+        "sha256": "bea197fd05bad4126cdfe3198b53e6458b731ba554d9bc33548d0259788a7ba8"
+      }
+    ]
+  },
+  {
+    "id": "lexi-llama31-8b",
+    "name": "Lexi Llama 3.1 8B",
+    "vendor": "Meta",
+    "logo": "meta",
+    "variant": "Uncensored",
+    "repo": "bartowski/Llama-3.1-8B-Lexi-Uncensored-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "4bf046e5f0e048ff60cfa1164a2c82432881ecbc",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "Llama-3.1-8B-Lexi-Uncensored-Q4_K_M.gguf",
+        "bytes": 4920734816,
+        "sha256": "d89a4c524dad60769446823089f2870c76475e61ec842801229b93158a9dbb4a"
+      }
+    ]
+  },
+  {
+    "id": "dolphin30-llama31-8b",
+    "name": "Dolphin 3.0 Llama 3.1 8B",
+    "vendor": "Meta",
+    "logo": "meta",
+    "variant": "Uncensored",
+    "repo": "bartowski/Dolphin3.0-Llama3.1-8B-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "a6274707ba8c5f12d4521eabbce1b318bb2f27f5",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "Dolphin3.0-Llama3.1-8B-Q4_K_M.gguf",
+        "bytes": 4920749472,
+        "sha256": "268390e07edd407ad93ea21a868b7ae995b5950e01cad0db9e1802ae5049d405"
+      }
+    ]
+  },
+  {
+    "id": "huihui-qwen3-14b",
+    "name": "Huihui Qwen3 14B",
+    "vendor": "Qwen",
+    "logo": "qwen",
+    "variant": "Abliterated",
+    "repo": "bartowski/huihui-ai_Qwen3-14B-abliterated-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "623c0f3fc42a4699d4583fb16e022942c003d1b7",
+    "runtime": "native",
+    "files": [
+      {
+        "path": "huihui-ai_Qwen3-14B-abliterated-Q4_K_M.gguf",
+        "bytes": 9001749568,
+        "sha256": "d76889059a3bfab30bc565012a0184827ff2bdc10197f6babc24541b98451dbe"
+      }
+    ]
+  }
+]
