@@ -32,7 +32,8 @@ FunctionEnd
 
 Section "Install"
   SetOutPath "$INSTDIR"
-  File /r "${APP_DIR}/*"
+  !cd "${APP_DIR}"
+  File /r "*"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   CreateShortCut "$SMPROGRAMS\${PRODUCT}.lnk" "$INSTDIR\${PRODUCT}.exe"
   WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${PRODUCT}"
