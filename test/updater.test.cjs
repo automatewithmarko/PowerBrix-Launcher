@@ -41,14 +41,14 @@ test('the updater ignores prereleases, inconsistent metadata and modified manife
 });
 
 test('an open launcher discovers a release on the next minute check and stops on shutdown',async t=>{
-  t.mock.timers.enable({apis:['setInterval']});
+  t.mock.timers.enable({apis:['setInterval','Date']});
   const controller = new AbortController();
   let version = '0.1.9';
-  let checks = 0;
+  const checks = [];
   const updates = [];
   const request = async (url,options)=>{
     if (options.method !== 'HEAD') return api()(url,options);
-    checks++;
+    checks.push(url);
     return new Response(null,{status:302,headers:{
       Location:'https://github.com/'+repository+'/releases/tag/v'+version,
     }});
@@ -56,18 +56,19 @@ test('an open launcher discovers a release on the next minute check and stops on
   const settle = () => new Promise(resolve=>setImmediate(resolve));
   startUpdatePolling('0.1.9',update=>updates.push(update),{request,signal:controller.signal,target:'darwin-arm64'});
   await settle();
-  assert.equal(checks,1);
+  assert.equal(checks.length,1);
   assert.equal(updates.length,0);
   version = '0.1.10';
   t.mock.timers.tick(59_999);
-  assert.equal(checks,1);
+  assert.equal(checks.length,1);
   t.mock.timers.tick(1);
   await settle();
   assert.equal(updates[0]?.version,'0.1.10');
+  assert.notEqual(checks[0],checks[1]);
   t.mock.timers.tick(60_000);
   await settle();
   assert.equal(updates.length,1);
   controller.abort();
   t.mock.timers.tick(60_000);
-  assert.equal(checks,3);
+  assert.equal(checks.length,3);
 });

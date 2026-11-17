@@ -61,7 +61,9 @@ function startUpdatePolling(current, onUpdate, {request=fetch, signal, target=pr
     pending = true;
     try {
       const timeout = AbortSignal.timeout(12_000);
-      const response = await request(latestReleaseUrl,{
+      // Give each minute its own URL so intermediaries cannot replay an older redirect.
+      const releaseCheckUrl = latestReleaseUrl+'?launcher-update='+Math.floor(Date.now()/updateInterval);
+      const response = await request(releaseCheckUrl,{
         method:'HEAD',redirect:'manual',cache:'no-cache',
         signal:signal ? AbortSignal.any([signal,timeout]) : timeout,
       });
