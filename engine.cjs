@@ -219,7 +219,7 @@ class LocalEngine {
       const fixture=model.runtime==='fixture';
       const native=model.runtime==='native' || model.runtime==='gemma' || model.runtime==='mapped' || fixture;
       const args=native
-        ? ['--host','127.0.0.1','--port',String(port),'-m',checkpoint,'-c',fixture?'512':'4096','-np','1','--no-webui']
+        ? ['--host','127.0.0.1','--port',String(port),'-m',checkpoint,'-c',fixture?'512':model.runtime==='mapped'?'8192':'4096','-np','1','--no-webui']
         : ['serve','--host','127.0.0.1','--port',String(port),'-m',checkpoint,'--context','4096','--machine',path.join(root,'machine.json')];
       if (fixture) args.push('-ngl','0');
       if (model.runtime==='mapped') args.push('-ngl','0','--load-mode','mmap','--lazy-mode','on','--no-warmup','--fit','off');
@@ -235,7 +235,7 @@ class LocalEngine {
       });
       child.once('error',error=>{failure=error;});
       const closed=new Promise(resolve=>child.once('close',resolve));
-      const instance={id:model.id,child,closed,key,base:'http://127.0.0.1:'+port};
+      const instance={id:model.id,child,closed,key,maxTokens:model.runtime==='mapped'?4096:512,base:'http://127.0.0.1:'+port};
       this.current=instance;
       child.once('close',()=>{
         if (this.current!==instance || instance.stopping) return;
@@ -339,7 +339,7 @@ class LocalEngine {
     const {base,key,model}=this.current;
     const response=await fetch(base+'/v1/chat/completions',{
       method:'POST',signal,headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-      body:JSON.stringify({model,messages,stream:true,max_tokens:512}),
+      body:JSON.stringify({model,messages,stream:true,max_tokens:this.current.maxTokens || 512}),
     });
     if (!response.ok) {
       const data=await response.json().catch(()=>null);
