@@ -68,6 +68,67 @@ async function ensureEngine(root, progress) {
     env:{...process.env,INFERSSD_HOME:path.join(root,'runtime'),INFERSSD_RESOURCES:descriptor}};
 }
 
+// A separate pinned engine supplies current Kimi architectures while retaining the SSD engine for existing models.
+const mappedRelease = 'b12498';
+const mappedReleases = {
+  'darwin-arm64': ['macos-arm64.tar.gz',17282660,'88ba080b2b24bb69012633588c763b7ed20ea60b3f9e7fcbd1a5434eded3e325'],
+  'win32-x64': ['win-cpu-x64.zip',25520902,'eeb67345805510a1a955430d559336a3c535345d9a19467bf89fa0a6a34d4173'],
+};
+const mappedInstalls = new Map();
+async function findMappedServer(directory, depth=0) {
+  const name = process.platform === 'win32' ? 'llama-server.exe' : 'llama-server';
+  const candidate = path.join(directory,name);
+  if (await fs.access(candidate).then(()=>true,()=>false)) return candidate;
+  if (depth >= 3) return null;
+  for (const entry of await fs.readdir(directory,{withFileTypes:true})) {
+    if (entry.isDirectory()) {
+      const server = await findMappedServer(path.join(directory,entry.name),depth+1);
+      if (server) return server;
+    }
+  }
+  return null;
+}
+async function ensureMappedEngine(root, progress, signal) {
+  const target = process.platform+'-'+process.arch;
+  const platform = mappedReleases[target];
+  if (!platform) throw Error('Kimi models require Apple Silicon macOS or Windows x64.');
+  const directory = path.join(root,'engine','kimi-'+mappedRelease+'-'+target);
+  const existing = await findMappedServer(directory).catch(error=>{
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  });
+  if (existing) return {server:existing,env:process.env};
+  if (mappedInstalls.has(directory)) return mappedInstalls.get(directory);
+  const install = (async()=>{
+    const [suffix,bytes,sha256] = platform;
+    const name = 'llama-'+mappedRelease+'-bin-'+suffix;
+    const engineRoot = path.dirname(directory);
+    await fs.mkdir(engineRoot,{recursive:true,mode:0o700});
+    const archive = path.join(engineRoot,name);
+    progress('Installing the Kimi model engine…');
+    await downloadFile('https://github.com/ggml-org/llama.cpp/releases/download/'+mappedRelease+'/'+name,
+      archive,{bytes,sha256},signal);
+    const stage = await fs.mkdtemp(path.join(engineRoot,'kimi-install-'));
+    try {
+      if (process.platform === 'win32') {
+        await processOutput('powershell.exe',['-NoProfile','-NonInteractive','-Command',
+          'Expand-Archive -LiteralPath $env:PBX_ARCHIVE -DestinationPath $env:PBX_STAGING'],
+          {env:{...process.env,PBX_ARCHIVE:archive,PBX_STAGING:stage},signal});
+      } else await processOutput('/usr/bin/tar',['-xzf',archive,'-C',stage],{signal});
+      const server = await findMappedServer(stage);
+      if (!server) throw Error('The downloaded Kimi engine is incomplete.');
+      signal.throwIfAborted();
+      const relative = path.relative(stage,server);
+      await fs.rename(stage,directory);
+      await fs.rm(archive);
+      return {server:path.join(directory,relative),env:process.env};
+    } finally { await fs.rm(stage,{recursive:true,force:true}); }
+  })();
+  mappedInstalls.set(directory,install);
+  try { return await install; }
+  finally { mappedInstalls.delete(directory); }
+}
+
 async function profileMachine(engine, root, modelsDirectory, progress, reprofile, signal) {
   if (process.env.POWERBRIX_PROFILE_REPORT) {
     return JSON.parse(await fs.readFile(process.env.POWERBRIX_PROFILE_REPORT,'utf8'));
@@ -152,15 +213,16 @@ class LocalEngine {
     signal.throwIfAborted();
     this.setStatus('loading');
     try {
-      const engine=await loadEngine(progress);
+      const engine=model.runtime==='mapped' ? await ensureMappedEngine(root,progress,signal) : await loadEngine(progress);
       const port=await localPort();
       const key=randomBytes(32).toString('hex');
       const fixture=model.runtime==='fixture';
-      const native=model.runtime==='native' || model.runtime==='gemma' || fixture;
+      const native=model.runtime==='native' || model.runtime==='gemma' || model.runtime==='mapped' || fixture;
       const args=native
         ? ['--host','127.0.0.1','--port',String(port),'-m',checkpoint,'-c',fixture?'512':'4096','-np','1','--no-webui']
         : ['serve','--host','127.0.0.1','--port',String(port),'-m',checkpoint,'--context','4096','--machine',path.join(root,'machine.json')];
       if (fixture) args.push('-ngl','0');
+      if (model.runtime==='mapped') args.push('-ngl','0','--load-mode','mmap','--lazy-mode','on','--no-warmup','--fit','off');
       if (!native && !(await fs.stat(path.join(root,'machine.json')).catch(()=>null))) args.splice(-2);
       signal.throwIfAborted();
       const child=spawn(native?engine.server:engine.launcher,args,{
@@ -305,4 +367,4 @@ class LocalEngine {
   }
 }
 
-module.exports={ensureEngine,profileMachine,LocalEngine};
+module.exports={ensureEngine,ensureMappedEngine,profileMachine,LocalEngine};

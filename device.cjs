@@ -11,11 +11,11 @@ function pickModels(catalog, report, freeBytes, installed = new Set(), resumed =
     const local = installed.has(model.id);
     const estimate = estimates.get(model.repo);
     const bandwidth = report?.machine?.memory_read_Bps;
-    const nativeFits = model.runtime === 'ssd' || ram >= bytes+4*GiB;
+    const nativeFits = model.runtime === 'ssd' || (model.runtime === 'mapped' ? ram >= (model.minRamGiB || 8)*GiB : ram >= bytes+4*GiB);
     // Secondary estimates are explicitly separate from the calibrated upstream estimator.
     // Gemma E4B uses embedding lookups; the model card lists 4.5B effective vs. 8B stored.
     const workingBytes = model.id==='gemma' ? bytes*(4.5/8) : bytes;
-    const bandwidthRate = model.runtime !== 'ssd' && bandwidth ? bandwidth / workingBytes * .60 : null;
+    const bandwidthRate = !['ssd','mapped'].includes(model.runtime) && bandwidth ? bandwidth / workingBytes * .60 : null;
     const disk = report?.machine?.models_drive?.read_Bps;
     // Upstream IQ4_XS catalog: 3.10 GB dense excluding token lookup; 48 layers,
     // 10 routed experts per layer, 2,678,784 aligned bytes per expert read.
@@ -30,7 +30,7 @@ function pickModels(catalog, report, freeBytes, installed = new Set(), resumed =
       ? model.id==='qwenflash'
         ? 'Approximate SSD and RAM bandwidth estimate with a cold expert cache; CPU quantization throughput was unavailable.'
         : 'Approximate memory bandwidth estimate. Context, compute and GPU behavior can change actual speed.'
-      : estimate?.detail || 'Run Analyze System for a speed estimate.';
+      : estimate?.detail || (model.runtime === 'mapped' ? 'CPU inference with SSD memory mapping. Performance depends on RAM, SSD speed, model size and context. Download size is checked against your free storage.' : 'Run Analyze System for a speed estimate.');
     return {...model,bytes,local,speed,source,detail,range:estimate?.scenario_range_tokens_per_second||null,
       fit:local ? 'Installed' : !diskFits ? 'Needs more storage' : !nativeFits ? 'Needs more memory' : 'Ready to pull',
       pullable:!local && diskFits && nativeFits,

@@ -1,6 +1,6 @@
 {
   "name": "powerbrix-launcher",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "PowerBrix local AI desktop app",
   "license": "SEE LICENSE IN LICENSE",
   "main": "main.cjs",

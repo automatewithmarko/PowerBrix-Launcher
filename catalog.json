@@ -453,5 +453,645 @@
         "sha256": "d76889059a3bfab30bc565012a0184827ff2bdc10197f6babc24541b98451dbe"
       }
     ]
+  },
+  {
+    "id": "kimi-k31",
+    "name": "Kimi K3.1 Pro",
+    "vendor": "Moonshot AI",
+    "repo": "DevQuasar/moonshotai.Kimi-K3.1-Pro-GGUF",
+    "quantization": "Q2_K",
+    "revision": "05ecce65bdbf1b84c01e8b33f2e35cd469575373",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00001-of-00033.gguf",
+        "bytes": 32145254656,
+        "sha256": "80e05db6b68946fcac9ef5e03e20cec0cda48d23de3bcd7c3a887aef72412c48"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00002-of-00033.gguf",
+        "bytes": 32138330880,
+        "sha256": "37df3693da630b8f1957ebfdae7679f4ed53e2641759235886f9514ca12b5404"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00003-of-00033.gguf",
+        "bytes": 32138330880,
+        "sha256": "210af0d2e942af89cb791e33a382a0ee182b78fb0d3fa051eee3b06fe046ee70"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00004-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "3e23c49e80a2c34545c708d127d05fd61cc59e5760ccf2fd863032fdfcdd32bc"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00005-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "e39f1e6508b02c4cfa765b8b2d93d350568f9e9f5481114b17be9e4f349a1d9e"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00006-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "9c35e0f4c7df28ed0616de934557fc163e5149c5222c7b02ee3293c297317230"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00007-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "87abe423d2edbbb7af249cbf8b7d2b8382b5e2b583a200e9c75b7ed7b30ebe94"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00008-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "974f62e374d586f6b4acb580b192557ea30b826dc988a20b360ec793d1075444"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00009-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "aabbfe82203582b65b809bd64694e7955ca3d0f85a616a844eee5dbcf15ef91d"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00010-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "a4c508519b922058ae3954819c8e83a5aaa534c5df4893c33455c2d52ad1d873"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00011-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "6413361f1e400c3a719bfd06e45eabad4c8c018a69c76970a7bf204b30cb3a56"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00012-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "9d25060cd4094621592d3039fda58343609869a70d6def6d57df56654e626f34"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00013-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "4024680b85f691c877ab7eb5ad052482164a055e57b8891708e86362913f6c34"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00014-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "a921df6cca3e21ee2ab5849e0298bbc114f129a050fb17086989023a80b20308"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00015-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "476f4351263acfde1cad3f65054cf6cd5a163f23e59098a56608b808315494a6"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00016-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "c37c1847beabf44d6150c18c2c88a757c149443f44c652c137d1ca1c03789d22"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00017-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "4468c77a77b30dd2cf1c9d253b2244c0afc0bd17a4ba05a64d5b51621d0b80ed"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00018-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "01cfac198d4a3b2c7db6969eac7e9e6240b395787aeac05b40b0c228d2a70047"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00019-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "02788178771c41bd569dac35633408396c350b7d5d3b18457465a90de5362b5f"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00020-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "3a01eadd6115b92b43636eadd85b8a6b574632abae9eb2bc9d5a9c4f7058327b"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00021-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "23089eae19a109ed3da1e7d229aabe935963dc58417e4d90a4ba58143d5d7234"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00022-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "2c4aee72714d8b7ab0afa438de1a57cbe302c4b462e81f6bf4a997403dd29a48"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00023-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "6b94558059954d4f0f44b5d4a1827cde8a63c6e88378bc89d543138cb1e640b4"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00024-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "5d5177b7dca56625a8ed9c4f3ed566874ca50b574075574e04298dce6d2671c9"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00025-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "0d4cd9a02b0c5c00baf720c40025102102786a111cdba58ef16b1e398ff38a9c"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00026-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "4c6ccfbb852e2b868f64d4c8731e0aa6875d260f328cb0cf78ff7282f0de3c29"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00027-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "239eee099575d37825a2ddea867d2b29edcdfe2355bf54cef819805f1a9cee50"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00028-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "ecbf379768551f5e669ce863e4bb08c5a9946ba436785a96018a2ab08f728d39"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00029-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "b8177d5850c1c148930d66ac28f3ca9f2859b4dd9c40c0c9a4a40407392faf9f"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00030-of-00033.gguf",
+        "bytes": 32138330912,
+        "sha256": "6510c40cf7ac5adc013c05bca13f7974dd04bd2b27ae32a71487c880576171fd"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00031-of-00033.gguf",
+        "bytes": 25130091328,
+        "sha256": "99a911bf387bb65dc292dec0eec1a84a91dee7681e49773ceefb7782a32ce30e"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00032-of-00033.gguf",
+        "bytes": 10168336576,
+        "sha256": "649a00a4f06f9aedfe75ce45ef8d4d9e4cb7460eeaacc192c25c53fe0e975474"
+      },
+      {
+        "path": "Q2_K/moonshotai.Kimi-K3.1-Pro-Q2_K-00033-of-00033.gguf",
+        "bytes": 9859748992,
+        "sha256": "25dc548b685093353a7380c08609c459be2d1b5d27900a13dbb150a4a3b8df58"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-k3",
+    "name": "Kimi K3",
+    "vendor": "Moonshot AI",
+    "repo": "unsloth/Kimi-K3-GGUF",
+    "quantization": "UD-Q2_K_XL",
+    "revision": "a0836360ce58dfec088d966a97f2ddc8a606279b",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00001-of-00019.gguf",
+        "bytes": 6934144,
+        "sha256": "9f8f3fe081edcde262e1931f772b1edf1a486c4fc9d936e4028ea0cf5e7e10f9"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00002-of-00019.gguf",
+        "bytes": 49949612160,
+        "sha256": "1b75ae812eab18dc75ce6ffe1193fdd20101dfbcc0b7c31f337c69f8640b8234"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00003-of-00019.gguf",
+        "bytes": 48978554752,
+        "sha256": "4b673b76a775164d9c4e8a0d4a54b8fc5433095a7bb30b2f08d4f80ef661ca7c"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00004-of-00019.gguf",
+        "bytes": 49824551744,
+        "sha256": "74fad1ae8fa450978f8328cd7c6a7a095b498c6b2ed920933367b9b3d6eb70ad"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00005-of-00019.gguf",
+        "bytes": 49393005856,
+        "sha256": "5f9ac408d873a90c37a8d1fc32a35ca3b082453358f31ea65432612cb532acee"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00006-of-00019.gguf",
+        "bytes": 47742644320,
+        "sha256": "78d4d1a4fe6441cccf7e7aa1e2d090dfa55e77d977057c724b93fd4e3cb236c4"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00007-of-00019.gguf",
+        "bytes": 49744198080,
+        "sha256": "43f37ad972e0c416f1ebb1e5a4543bef183fe446b50c2da3b56c9c7eb978d21f"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00008-of-00019.gguf",
+        "bytes": 47870271264,
+        "sha256": "777c7db8ed7186260928c66d11d125751e76e94ddc0531c14ed02e5d0a72a717"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00009-of-00019.gguf",
+        "bytes": 48999332128,
+        "sha256": "2fb70ba9379b4ced216b6380f5ed77375170ca8245aa89c15c1e768a746f113e"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00010-of-00019.gguf",
+        "bytes": 49165754528,
+        "sha256": "093a516e45f674b47c2f2d3814b9b184ff3cb65cb3f914a19b9ca775f0e71fcf"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00011-of-00019.gguf",
+        "bytes": 49843822496,
+        "sha256": "e0f36720965581bddf426c8775e11859266fd3e8b5fead18b79168d01f94a873"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00012-of-00019.gguf",
+        "bytes": 48999332128,
+        "sha256": "3f8f5532945c4d90d26c881c34bf865b82342a5f41b89c5fda9e9d2727594691"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00013-of-00019.gguf",
+        "bytes": 49997009440,
+        "sha256": "57aa189ab9e930eccb19ed2fd2f2dc4fb893e01513096a7b0b12a7d9381908ef"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00014-of-00019.gguf",
+        "bytes": 49012567584,
+        "sha256": "8ba9f2e128209a0a6bc6f6b47f14b054785277944d423cd96d68cae15133ebfc"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00015-of-00019.gguf",
+        "bytes": 49924176160,
+        "sha256": "94a0330fa7f3fc733fc76e40ce6292f4eac46ccd4b01a936238ae8cb919f65b2"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00016-of-00019.gguf",
+        "bytes": 49165754528,
+        "sha256": "278da42223123e23879fe0d1c9c747d844c5e29bcfeb6d7a9dc3ba308518df6f"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00017-of-00019.gguf",
+        "bytes": 49843822496,
+        "sha256": "1a06ba622d5ef125635014d865a6a68ee8518fb81f7203db976aec3a23c27e84"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00018-of-00019.gguf",
+        "bytes": 48999332128,
+        "sha256": "cab554dbaa439a04dbb23f9b24a5059f90cf837e0ddb852abeac6d24285e9588"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K3-UD-Q2_K_XL-00019-of-00019.gguf",
+        "bytes": 23817182976,
+        "sha256": "0bbf968ab09e487d90dd3621e90c0463e756ac89fd349ddf60f3b5ac0c2c8e58"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-k27-code",
+    "name": "Kimi K2.7 Code",
+    "vendor": "Moonshot AI",
+    "repo": "unsloth/Kimi-K2.7-Code-GGUF",
+    "quantization": "UD-Q2_K_XL",
+    "revision": "46352ca8dc32aa60f9754f5bd3fb778deeb9e430",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.7-Code-UD-Q2_K_XL-00001-of-00008.gguf",
+        "bytes": 6913184,
+        "sha256": "2fb6f21ef59c622f3b1dbdc45c6d26d883092394d09fc43a516126b36a60d404"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.7-Code-UD-Q2_K_XL-00002-of-00008.gguf",
+        "bytes": 49352642720,
+        "sha256": "7f8c25897b1f96153aa56839f188c258f85d700b403029509efb5c433909d98b"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.7-Code-UD-Q2_K_XL-00003-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "efe9b2f6aaa1db9b7131cbf0d8c0d118d341ffc1e1654633176e6025fb06eeca"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.7-Code-UD-Q2_K_XL-00004-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "7039e54b6694a56f9bba7cb8121e467f2f7ad6fcaa3a9207ba7488b4a331007d"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.7-Code-UD-Q2_K_XL-00005-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "956132c588c4f945d0b8566f312d38b104ca9c06340e7fac80f334196241794a"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.7-Code-UD-Q2_K_XL-00006-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "91645cdbcbfde42a5eb35ceeb1cb6c8794641379423b72bd136a36e898ba4451"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.7-Code-UD-Q2_K_XL-00007-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "7185530f9d07fa3e4785bcb36915319f909d5f70b512ddffdb9e38f7107f3f9d"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.7-Code-UD-Q2_K_XL-00008-of-00008.gguf",
+        "bytes": 40735314432,
+        "sha256": "ba884a96a29677524c8f30f2b2418c4bcef0d9c52ca49b22ca13c8c9ef37cb5c"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-k26",
+    "name": "Kimi K2.6",
+    "vendor": "Moonshot AI",
+    "repo": "unsloth/Kimi-K2.6-GGUF",
+    "quantization": "UD-Q2_K_XL",
+    "revision": "47c7cab1e440dd9fcfc57c469e4737983408a6f2",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.6-UD-Q2_K_XL-00001-of-00008.gguf",
+        "bytes": 6913152,
+        "sha256": "6218da3cc528de6a7fb48f8c7fc4ad45f7dbeeba244b3df07c4c98b20b35121c"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.6-UD-Q2_K_XL-00002-of-00008.gguf",
+        "bytes": 48644655008,
+        "sha256": "b2c125f7bd8526b1c74a748bba1afc3fc8f0ea3a869cb6ee67821e3b8940d250"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.6-UD-Q2_K_XL-00003-of-00008.gguf",
+        "bytes": 49873883008,
+        "sha256": "4a8f9b411de5494c10adff8bc08ad0a87d5e65dde18cb0a432d121032de2ebf1"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.6-UD-Q2_K_XL-00004-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "5cb5bf93a64877b7b4a09330dd07e54bcfae5a8ad7ce9e0eb811167b75b8651b"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.6-UD-Q2_K_XL-00005-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "124bec4332a086c1ba13dd993ea299d44c913125893fee7d348d94a9ab3e66eb"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.6-UD-Q2_K_XL-00006-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "f3b8330d79d96f4288aba35fafe7939dba302abe4ea897146a5e179f748bc0fd"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.6-UD-Q2_K_XL-00007-of-00008.gguf",
+        "bytes": 49873883040,
+        "sha256": "31a4040f1f1437f38edbe582f7ccbace5d545b71cd69da9cf1d27efd8bbf73b7"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.6-UD-Q2_K_XL-00008-of-00008.gguf",
+        "bytes": 42456226560,
+        "sha256": "7e6303d24550673edf8a13d7698a1820f5a0f7cb220d17d83dffa409cc73d9d5"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-k25",
+    "name": "Kimi K2.5",
+    "vendor": "Moonshot AI",
+    "repo": "unsloth/Kimi-K2.5-GGUF",
+    "quantization": "UD-Q2_K_XL",
+    "revision": "386fed8b054275941d6a495a9a7010fbf31b560d",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.5-UD-Q2_K_XL-00001-of-00008.gguf",
+        "bytes": 49856623456,
+        "sha256": "9e7d1f1c05bdff68f2dd467fcb35b6ca05f051bb93273a9bf2b93fd94a3c7df0"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.5-UD-Q2_K_XL-00002-of-00008.gguf",
+        "bytes": 49743844608,
+        "sha256": "46f71766b283153ef01cc96bca28ca1d5111f0f0392cfca23cb3aad3c94e9648"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.5-UD-Q2_K_XL-00003-of-00008.gguf",
+        "bytes": 49691497728,
+        "sha256": "d028387cb213a9672db30a1df632aead80a05945b0e62ef33abeabae049f8db7"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.5-UD-Q2_K_XL-00004-of-00008.gguf",
+        "bytes": 49696363776,
+        "sha256": "8b2a3cfc77181d43e9fec37b71758b25dc4acd2a3eaaadde15055541893a4ed6"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.5-UD-Q2_K_XL-00005-of-00008.gguf",
+        "bytes": 49686631680,
+        "sha256": "b9b605103c98df9c6ab6d6b6e58a8fe1113ae712483b3081d98117b72329919d"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.5-UD-Q2_K_XL-00006-of-00008.gguf",
+        "bytes": 49686631680,
+        "sha256": "16cc63f64edec21a4003096e758d5315f6c1b411567f6fe58d2aaa89f6f14a49"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.5-UD-Q2_K_XL-00007-of-00008.gguf",
+        "bytes": 49686631680,
+        "sha256": "671b19161775972d0840751d93a2b7eb6437f42bce03b97a9afcd019c27637e8"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2.5-UD-Q2_K_XL-00008-of-00008.gguf",
+        "bytes": 26716105536,
+        "sha256": "cac04413d800254e74f5d238e33cc17a914fe47d257cffb45e289c5799f6c243"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-k2-thinking",
+    "name": "Kimi K2 Thinking",
+    "vendor": "Moonshot AI",
+    "repo": "unsloth/Kimi-K2-Thinking-GGUF",
+    "quantization": "UD-Q2_K_XL",
+    "revision": "7e4f5d413a9bb469174b2cc9e47d457d16bc6702",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Thinking-UD-Q2_K_XL-00001-of-00008.gguf",
+        "bytes": 48379118944,
+        "sha256": "0690916351a38d7168e33235ae0befea5f31dc99d8b0670448fdd3501e1bc387"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Thinking-UD-Q2_K_XL-00002-of-00008.gguf",
+        "bytes": 47348946016,
+        "sha256": "e439052d4c4021803dde6ade3650b3e36c731bc9ac7e71f7fa5a1157bd177520"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Thinking-UD-Q2_K_XL-00003-of-00008.gguf",
+        "bytes": 48198998784,
+        "sha256": "5111dd5b39e9537afae23294c673ecbe1fe5238ed51f44355f363691e9115038"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Thinking-UD-Q2_K_XL-00004-of-00008.gguf",
+        "bytes": 49783198976,
+        "sha256": "4082ca8976005d203f368fa72884c5893b7fdd5980ff11e394ae6d722ae94348"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Thinking-UD-Q2_K_XL-00005-of-00008.gguf",
+        "bytes": 49779299584,
+        "sha256": "cc7e1b78ec457204ecc4b5b3b734cfa2859071439e3e94fe9456135bd6f431cd"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Thinking-UD-Q2_K_XL-00006-of-00008.gguf",
+        "bytes": 49779299584,
+        "sha256": "5bbac81e2bab03d26e9ae17be8a0f7a156fd3ea12dc6af0d3d33fe5c97f17113"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Thinking-UD-Q2_K_XL-00007-of-00008.gguf",
+        "bytes": 49784804608,
+        "sha256": "de70a97ea80ad68501af5bdd48bd82952e20e19b47059aac3ee3f3b0f8903926"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Thinking-UD-Q2_K_XL-00008-of-00008.gguf",
+        "bytes": 43293020544,
+        "sha256": "0967698517f65a7e7c1a0231ceb7e5f1e3f39eaef1028849e80a28b355baad23"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-k2-0905",
+    "name": "Kimi K2 Instruct 0905",
+    "vendor": "Moonshot AI",
+    "repo": "unsloth/Kimi-K2-Instruct-0905-GGUF",
+    "quantization": "UD-Q2_K_XL",
+    "revision": "ca516d05c7621c0615db3fc7efa63c9617547363",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-0905-UD-Q2_K_XL-00001-of-00008.gguf",
+        "bytes": 48569006624,
+        "sha256": "79e6b087dc13840ca55c6901889b12ec06fbfefe5b44cca7ea9c9488078ac5d0"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-0905-UD-Q2_K_XL-00002-of-00008.gguf",
+        "bytes": 49359440896,
+        "sha256": "30703a73c6a6c37666391312c80519ad30f9fd5acab440d6c896cbe8ad119490"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-0905-UD-Q2_K_XL-00003-of-00008.gguf",
+        "bytes": 48666797056,
+        "sha256": "96771d3595e74d3d350adf8517e756ab13a9c95f00785c6245ff2af1aee13169"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-0905-UD-Q2_K_XL-00004-of-00008.gguf",
+        "bytes": 49781249280,
+        "sha256": "b90eef8ba8255a5e48a37b33e31ed13246d56e3c282f421a187204e7dcd1522f"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-0905-UD-Q2_K_XL-00005-of-00008.gguf",
+        "bytes": 49779299584,
+        "sha256": "e273136fd245f513f5f9da0a36d68e067fe51d108d525d2715ecdd386254ac28"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-0905-UD-Q2_K_XL-00006-of-00008.gguf",
+        "bytes": 49779299584,
+        "sha256": "e91e91d896997c2a22467cfa9ef46ed66075f1068aa253955a2e323b2596b329"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-0905-UD-Q2_K_XL-00007-of-00008.gguf",
+        "bytes": 48849867904,
+        "sha256": "9e15b086b9b4b0efe73b4f71ed4eb9e8de72efe401fd3324a1b6d5f01f300937"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-0905-UD-Q2_K_XL-00008-of-00008.gguf",
+        "bytes": 38787192704,
+        "sha256": "89cdf4f25638ab6b0cf606237f80bbd819259e1017ad4c7a349759e398ef7440"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-k2",
+    "name": "Kimi K2 Instruct",
+    "vendor": "Moonshot AI",
+    "repo": "unsloth/Kimi-K2-Instruct-GGUF",
+    "quantization": "UD-Q2_K_XL",
+    "revision": "23bf90d8196ddfcb3328a6f60c99a9bdb5c1dadf",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-UD-Q2_K_XL-00001-of-00008.gguf",
+        "bytes": 49981610528,
+        "sha256": "cee60a71507624b42ef6eff87ce2aaf187632c214ab6fcfe97c02f5a5376f883"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-UD-Q2_K_XL-00002-of-00008.gguf",
+        "bytes": 48635816800,
+        "sha256": "274fdfaef6ab52d3a3c55387ee038fb12d2aecff9635b0d966609c2e94a66b16"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-UD-Q2_K_XL-00003-of-00008.gguf",
+        "bytes": 49755444480,
+        "sha256": "14ee63a8b7ff1b21610de3a00eeea785cb1d4dd442052858f4d2a4da95e1b230"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-UD-Q2_K_XL-00004-of-00008.gguf",
+        "bytes": 49752068352,
+        "sha256": "3c80d279309723c95e5299b64e994df8aea53133d9dd54ff01775d978a90a050"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-UD-Q2_K_XL-00005-of-00008.gguf",
+        "bytes": 49748104448,
+        "sha256": "d12918cff1ad3f4e267a1ec9d124c0066f29981a983584f9823bde6219ca5d2f"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-UD-Q2_K_XL-00006-of-00008.gguf",
+        "bytes": 49750233344,
+        "sha256": "4b5a59f999648696e3c03f174c95038a5f910595db9c1eee6bb658cf3388f053"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-UD-Q2_K_XL-00007-of-00008.gguf",
+        "bytes": 49754018048,
+        "sha256": "366855f43768806ced21f83c344aab45d9c292761e4a87153a6eda118c94021c"
+      },
+      {
+        "path": "UD-Q2_K_XL/Kimi-K2-Instruct-UD-Q2_K_XL-00008-of-00008.gguf",
+        "bytes": 34484027872,
+        "sha256": "28a93946b17f0ee9fe6191e26fe805a36e0c0c329f73cc28b00d32cdfd8142eb"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-linear",
+    "name": "Kimi Linear 48B A3B",
+    "vendor": "Moonshot AI",
+    "repo": "bartowski/moonshotai_Kimi-Linear-48B-A3B-Instruct-GGUF",
+    "quantization": "Q4_K_M",
+    "revision": "228dbe476e5a02091624a19068f4c962caa8a1c5",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "moonshotai_Kimi-Linear-48B-A3B-Instruct-Q4_K_M.gguf",
+        "bytes": 30061058720,
+        "sha256": "a1a7d865370652221f937163f7e94c99e1f114861335ba4f8666606843f1620f"
+      }
+    ],
+    "logo": "kimi"
+  },
+  {
+    "id": "kimi-dev",
+    "name": "Kimi Dev 72B",
+    "vendor": "Moonshot AI",
+    "repo": "unsloth/Kimi-Dev-72B-GGUF",
+    "quantization": "UD-Q3_K_XL",
+    "revision": "7d0a1f3ffeae22372b9d5959b5d79199bbba71b6",
+    "runtime": "mapped",
+    "minRamGiB": 8,
+    "files": [
+      {
+        "path": "Kimi-Dev-72B-UD-Q3_K_XL.gguf",
+        "bytes": 38295643648,
+        "sha256": "53f63e7a15d1253480b6c6daad113c9b11122e69f58cf0b36ae06a6474779be3"
+      }
+    ],
+    "logo": "kimi"
   }
 ]

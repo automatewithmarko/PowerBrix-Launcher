@@ -33,7 +33,7 @@ You still need enough SSD space to store the download, and enough working memory
 ## Supported models
 
 <p>
-  <img src="renderer/model-logos/gemma.svg" width="28" height="28" align="middle" alt="Google"> &nbsp; <img src="renderer/model-logos/qwen.svg" width="28" height="28" align="middle" alt="Qwen"> &nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="renderer/model-logos/openai.svg"><img src="docs/openai-light.svg" width="28" height="28" align="middle" alt="OpenAI"></picture> &nbsp; <img src="renderer/model-logos/deepseek.svg" width="28" height="28" align="middle" alt="DeepSeek"> &nbsp; <img src="renderer/model-logos/meta.svg" width="28" height="28" align="middle" alt="Meta"> &nbsp; <img src="renderer/model-logos/microsoft.svg" width="28" height="28" align="middle" alt="Microsoft"> &nbsp; <img src="renderer/model-logos/mistral.svg" width="28" height="28" align="middle" alt="Mistral AI"> &nbsp; <img src="renderer/model-logos/ibm.svg" width="28" height="28" align="middle" alt="IBM"> &nbsp; <strong>(uncensored versions too)</strong>
+  <img src="renderer/model-logos/gemma.svg" width="28" height="28" align="middle" alt="Google"> &nbsp; <img src="renderer/model-logos/qwen.svg" width="28" height="28" align="middle" alt="Qwen"> &nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="renderer/model-logos/openai.svg"><img src="docs/openai-light.svg" width="28" height="28" align="middle" alt="OpenAI"></picture> &nbsp; <img src="renderer/model-logos/deepseek.svg" width="28" height="28" align="middle" alt="DeepSeek"> &nbsp; <img src="renderer/model-logos/meta.svg" width="28" height="28" align="middle" alt="Meta"> &nbsp; <img src="renderer/model-logos/microsoft.svg" width="28" height="28" align="middle" alt="Microsoft"> &nbsp; <img src="renderer/model-logos/mistral.svg" width="28" height="28" align="middle" alt="Mistral AI"> &nbsp; <img src="renderer/model-logos/ibm.svg" width="28" height="28" align="middle" alt="IBM"> &nbsp; <picture><source media="(prefers-color-scheme: dark)" srcset="renderer/model-logos/kimi.svg"><img src="docs/kimi-light.svg" width="28" height="28" align="middle" alt="Kimi"></picture> &nbsp; <strong>(uncensored versions too)</strong>
 </p>
 
 Disk sizes are approximate for the specific quantization PowerBrix pulls. Each name links to the repository hosting those weights.
@@ -60,6 +60,18 @@ Disk sizes are approximate for the specific quantization PowerBrix pulls. Each n
 | [Lexi Llama 3.1 8B](https://huggingface.co/bartowski/Llama-3.1-8B-Lexi-Uncensored-GGUF) · Uncensored | Q4_K_M | 4.58 GiB | Memory resident |
 | [Dolphin 3.0 Llama 3.1 8B](https://huggingface.co/bartowski/Dolphin3.0-Llama3.1-8B-GGUF) · Uncensored | Q4_K_M | 4.58 GiB | Memory resident |
 | [Huihui Qwen3 14B](https://huggingface.co/bartowski/huihui-ai_Qwen3-14B-abliterated-GGUF) · Abliterated | Q4_K_M | 8.38 GiB | Memory resident |
+| [Kimi K3.1 Pro](https://huggingface.co/DevQuasar/moonshotai.Kimi-K3.1-Pro-GGUF) | Q2_K | 940.00 GiB | CPU / SSD mapping |
+| [Kimi K3](https://huggingface.co/unsloth/Kimi-K3-GGUF) | UD-Q2_K_XL | 802.13 GiB | CPU / SSD mapping |
+| [Kimi K2.7 Code](https://huggingface.co/unsloth/Kimi-K2.7-Code-GGUF) | UD-Q2_K_XL | 316.15 GiB | CPU / SSD mapping |
+| [Kimi K2.6](https://huggingface.co/unsloth/Kimi-K2.6-GGUF) | UD-Q2_K_XL | 317.09 GiB | CPU / SSD mapping |
+| [Kimi K2.5](https://huggingface.co/unsloth/Kimi-K2.5-GGUF) | UD-Q2_K_XL | 349.03 GiB | CPU / SSD mapping |
+| [Kimi K2 Thinking](https://huggingface.co/unsloth/Kimi-K2-Thinking-GGUF) | UD-Q2_K_XL | 359.81 GiB | CPU / SSD mapping |
+| [Kimi K2 Instruct 0905](https://huggingface.co/unsloth/Kimi-K2-Instruct-0905-GGUF) | UD-Q2_K_XL | 357.23 GiB | CPU / SSD mapping |
+| [Kimi K2 Instruct](https://huggingface.co/unsloth/Kimi-K2-Instruct-GGUF) | UD-Q2_K_XL | 355.64 GiB | CPU / SSD mapping |
+| [Kimi Linear 48B A3B](https://huggingface.co/bartowski/moonshotai_Kimi-Linear-48B-A3B-Instruct-GGUF) | Q4_K_M | 28.00 GiB | CPU / SSD mapping |
+| [Kimi Dev 72B](https://huggingface.co/unsloth/Kimi-Dev-72B-GGUF) | UD-Q3_K_XL | 35.67 GiB | CPU / SSD mapping |
+
+Kimi downloads include all split GGUF files. The launcher installs a checksum-verified Kimi engine on first use and uses CPU inference with SSD memory mapping. This path supports systems without a dedicated GPU. The complete download must fit on your SSD, and performance depends on working memory, SSD speed, and model size. Kimi support here is text chat, including skills, web search, and extracted document text. Full Kimi generation runs have not been benchmarked on our test machine.
 
 ## Install and update
 

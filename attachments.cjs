@@ -10,7 +10,7 @@ const maxExtractedChars = 32000;
 
 function supportsFiles(model) {
   // The native chat server accepts the extracted text and exposes its tokenizer.
-  return model?.runtime === 'native' || model?.runtime === 'gemma';
+  return model?.runtime === 'native' || model?.runtime === 'gemma' || model?.runtime === 'mapped';
 }
 
 async function readAttachment(filename) {
