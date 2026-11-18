@@ -9,6 +9,7 @@ let renderedPage;
 let streamReasoningOpen = false;
 let engineMenuOpen = false;
 let modelActionBusy = false;
+let liveMetrics = null;
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -364,6 +365,31 @@ function responseNote(turn) {
   if (turn.finishReason === 'cancelled') return '<small class="response-note">Response stopped.</small>';
   return '';
 }
+function chatStats(){
+  if(!turns.some(turn=>turn.role==='user'))return '';
+  const saved=turns.filter(turn=>turn.role==='assistant');
+  const measurements=saved.map(turn=>turn.metrics);
+  if(thinking&&liveMetrics)measurements.push(liveMetrics);
+  const summary=window.PowerBrixChatMetrics.summarizeMetrics(measurements);
+  const active=activeChatModel()?.id;
+  const latest=thinking&&liveMetrics?liveMetrics:[...saved].reverse().find(turn=>turn.modelId===active&&turn.metrics)?.metrics;
+  const used=latest?.promptTokens!=null&&latest?.generatedTokens!=null?latest.promptTokens+latest.generatedTokens:null;
+  const capacity=latest?.contextCapacity;
+  const percent=used!=null&&capacity>0?Math.min(100,used/capacity*100):null;
+  const total=summary.total===null?'Not reported':summary.total.toLocaleString()+(summary.unreported?'+':'');
+  const rate=summary.average===null?(thinking?'Measuring':'Not reported'):summary.average.toFixed(1)+' tok/s';
+  const context=percent===null?'Waiting for model':Math.round(percent)+'% context';
+  return '<span class="chat-stat" title="Average generation speed in this chat, based on generated tokens and engine decode time. Includes thinking; excludes model loading and prompt processing.">'
+    +icon('M13 2 4 14h7l-1 8 10-12h-7l1-8Z')+'<span>'+rate+'<small> average</small></span></span>'
+    +'<span class="chat-stat" title="'+(percent===null?'Context usage will appear when the model reports token counts.':used.toLocaleString()+' / '+capacity.toLocaleString()+' tokens in the latest request and response. Older conversation may be trimmed to fit.')+'">'
+    +icon('M4 17a9 9 0 1 1 16 0M12 14l4-5M8 19h8')+'<span>'+context+'</span></span>'
+    +'<span class="chat-stat" title="Total recorded AI tokens in this chat, including thinking. A plus means older replies have no recorded counts.">'+icons.models+'<span>'+total+'<small> tokens generated</small></span></span>';
+}
+function updateChatStats(){
+  const row=document.querySelector('#chat-stats');if(!row)return;
+  row.innerHTML=chatStats();row.hidden=!row.innerHTML;
+}
+
 function chatArea(){
   const active=activeChatModel();
   const messages=turns.map((turn,index)=>'<div class="message '+turn.role+'">'
@@ -377,7 +403,7 @@ function chatArea(){
     +button('new',icons.plus+' New chat','btn secondary compact',thinking?'disabled':'')
     +'</header>';
   const content = '<section class="chat" aria-label="AI Chat">'+(historyOn()?'':header)+'<div id="chat-scroll" class="chat-scroll">'+(messages||streaming?'<div class="messages">'+messages+streaming+'</div>':welcome)
-    +'</div><div class="composer-wrap">'+chatComposer(active)+'</div></section>';
+    +'</div><div class="composer-wrap">'+chatComposer(active)+'<div id="chat-stats" class="chat-stats" aria-label="Chat performance"'+(turns.length?'':' hidden')+'>'+chatStats()+'</div></div></section>';
   return '<main class="workspace chat-layout">'+(historyOn()?chatHistory():'')+content
     +(historyOn()?'<dialog id="history-dialog" aria-labelledby="history-dialog-title"><form id="history-form"><h2 id="history-dialog-title"></h2><p></p><label>Chat name<input name="title" maxlength="80" required></label><div>'
       +button('cancel-history','Cancel','btn secondary compact')+'<button type="submit" class="btn primary compact">Save</button></div></form></dialog>':'')+'</main>';
@@ -831,7 +857,7 @@ root.addEventListener('submit',async event=>{
   const attachments=pendingFiles;
   const content=query||'Summarize the attached files.';
   drafts.delete(draftKey());pendingFiles=[];modelMenuOpen=false;skillsMenuOpen=false;
-  turns.push({role:'user',content,attachments,webSearch:useWebSearch});thinking=true;status=useWebSearch?'Searching the web…':'Starting local model…';answer='';reasoning='';streamReasoningOpen=false;render();
+  turns.push({role:'user',content,attachments,webSearch:useWebSearch});thinking=true;status=useWebSearch?'Searching the web…':'Starting local model…';answer='';reasoning='';liveMetrics=null;streamReasoningOpen=false;render();
   const chatScroll=document.querySelector('#chat-scroll');
   if(chatScroll)chatScroll.scrollTop=chatScroll.scrollHeight;
   const history=turns.filter(turn=>turn.content?.trim()).slice(-35).map(turn=>({role:turn.role,content:turn.content,
@@ -840,7 +866,7 @@ root.addEventListener('submit',async event=>{
   if(data?.answer||answer||data?.reasoning||reasoning)turns.push({
     role:'assistant',content:data?.answer||answer,reasoning:data?.reasoning||reasoning,
     reasoningOpen:streamReasoningOpen,finishReason:data?.finishReason||(data?.stopped?'cancelled':!data?'interrupted':null),
-    shortened:data?.shortened,sources:data?.sources,
+    shortened:data?.shortened,sources:data?.sources,metrics:data?.metrics||liveMetrics,modelId:active.id,
   });
   else if(!data?.stopped){turns.pop();pendingFiles=attachments;drafts.set(draftKey(),typed);}
   thinking=false;saveConversation();render();
@@ -858,7 +884,7 @@ api.onEngineModel?.(view=>{
   state.engineModelId=view.id;state.engineStatus=view.status;
   updateEngineStatus(view.status);syncEngineMenu();
 });
-api.onChat(delta=>{status=delta.status??status;answer=delta.answer??answer;reasoning=delta.reasoning??reasoning;showStream();});
+api.onChat(delta=>{status=delta.status??status;answer=delta.answer??answer;reasoning=delta.reasoning??reasoning;liveMetrics=delta.metrics??liveMetrics;showStream();updateChatStats();});
 api.onScan(value=>{
   if(!state)return;state.scan=value;window.PowerBrixActivity?.update(state);
   const label=document.querySelector('#scan-status');

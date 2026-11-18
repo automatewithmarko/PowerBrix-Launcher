@@ -53,3 +53,14 @@ test('ordinary chats trim older context while reserving room for thinking and th
   assert.deepEqual(result.messages,[messages[2]]);
   assert.equal(result.shortened,true);
 });
+test('live engine metadata reaches the UI, including cached prompt tokens and final usage-only events',async t=>{
+  const body='data: '+JSON.stringify({choices:[],prompt_progress:{total:200,cache:190,processed:200}})+'\n\n'
+    +'data: '+JSON.stringify({choices:[{delta:{content:'Answer'}}],timings:{predicted_n:2,predicted_ms:100}})+'\n\n'
+    +'data: '+JSON.stringify({choices:[],usage:{prompt_tokens:200,completion_tokens:3},timings:{predicted_n:3,predicted_ms:150}})+'\n\n'
+    +event({delta:{},finish_reason:'stop'})+'data: [DONE]\n\n';
+  const {engine,requests}=await chatServer(t,body);engine.current.contextTokens=8192;
+  const updates=[];const result=await engine.chat([{role:'user',content:'Explain'}],AbortSignal.timeout(3000),delta=>updates.push(delta));
+  assert.equal(result.metrics.generatedTokens,3);assert.equal(result.metrics.promptTokens,200);
+  assert.equal(result.metrics.generationMs,150);assert.equal(result.metrics.contextCapacity,8192);
+  assert.equal(updates[1].metrics.promptTokens,200);assert.equal(requests[0].stream_options.include_usage,true);
+});

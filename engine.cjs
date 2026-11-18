@@ -5,6 +5,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const net = require('node:net');
 const {downloadFile} = require('./downloads.cjs');
+const {readMetrics}=require('./renderer/chat-metrics.js');
 
 const release = 'inferssd-261109.216.02ed6a8-';
 const releases = {
@@ -406,14 +407,16 @@ class LocalEngine {
     const {base,key,model}=this.current;
     const response=await fetch(base+'/v1/chat/completions',{
       method:'POST',signal,headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-      body:JSON.stringify({model,messages,stream:true,reasoning_format:'deepseek',max_tokens:this.current.maxTokens || 4096}),
+      body:JSON.stringify({model,messages,stream:true,stream_options:{include_usage:true},timings_per_token:true,return_progress:true,reasoning_format:'deepseek',max_tokens:this.current.maxTokens || 4096}),
     });
     if (!response.ok) {
       const data=await response.json().catch(()=>null);
       throw Error(data?.error?.message || 'The local engine returned HTTP '+response.status+'.');
     }
     const reader=response.body.pipeThrough(new TextDecoderStream());
-    let buffer='', answer='', reasoning='', finishReason=null, done=false;
+    let buffer='', answer='', reasoning='', finishReason=null, done=false, usage={},timings={};
+    const metrics=()=>readMetrics(usage,timings,this.current?.contextTokens);
+    const result=()=>({answer,reasoning,finishReason:finishReason || 'interrupted',...(metrics()?{metrics:metrics()}:{})});
     const consume = line => {
       if (!line.startsWith('data:')) return;
       const data=line.slice(5).trim();
@@ -421,13 +424,16 @@ class LocalEngine {
       if (data==='[DONE]') {done=true;return;}
       const payload=JSON.parse(data);
       if (payload.error) throw Error(payload.error.message || 'The model could not complete this request.');
+      if(Number.isSafeInteger(payload.prompt_progress?.total)&&payload.prompt_progress.total>=0)usage.prompt_tokens=payload.prompt_progress.total;
+      if(payload.usage)usage={...usage,...payload.usage};
+      if(payload.timings)timings={...timings,...payload.timings};
       const choice=payload.choices?.[0];
       const delta=choice?.delta;
       const thought=delta?.reasoning_content ?? delta?.reasoning;
       if (typeof thought==='string') reasoning+=thought;
       if (typeof delta?.content==='string') answer+=delta.content;
       if (choice?.finish_reason) finishReason=choice.finish_reason;
-      if (thought || delta?.content) onDelta({reasoning,answer});
+      if (thought || delta?.content || payload.usage || payload.timings || payload.prompt_progress) onDelta({reasoning,answer,...(metrics()?{metrics:metrics()}:{})});
     };
     for await (const chunk of reader) {
       buffer+=chunk;
@@ -435,11 +441,11 @@ class LocalEngine {
       buffer=lines.pop();
       for (const line of lines) {
         consume(line);
-        if (done) return {answer,reasoning,finishReason:finishReason || 'interrupted'};
+        if (done) return result();
       }
     }
     if (buffer.trim()) consume(buffer);
-    return {answer,reasoning,finishReason:finishReason || 'interrupted'};
+    return result();
   }
 }
 
