@@ -441,9 +441,9 @@ body{display:grid;grid-template-rows:auto minmax(0,1fr)}
 #activity-overlay::backdrop{background:#39204e85;backdrop-filter:blur(2px)}
 .activity-surface{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 28px;}
 .activity-dismiss{position:fixed;right:26px;top:21px;background:transparent;border:0;color:#c4a3df;font-size:25px;font-weight:200;padding:5px 10px;}
-.activity-game{display:grid;grid-template-columns:160px minmax(110px,210px) 160px;justify-content:center;align-items:center;gap:32px;margin:0 auto 30px;}
-.activity-board-wrap{position:relative;grid-column:2;border:1px solid #bc8ce837;background:transparent;}
-.activity-board-wrap>canvas{display:block;width:auto;height:clamp(200px,46vh,420px);max-width:100%;background:transparent;outline:none;}
+.activity-game{display:grid;grid-template-columns:150px minmax(110px,250px) 150px;justify-content:center;align-items:center;gap:28px;margin:0 auto 24px;--tetris-height:min(56vh,490px,calc(100vh - 240px));}
+.activity-board-wrap{position:relative;grid-column:2;border:1px solid #c49af077;background:transparent;}
+.activity-board-wrap>canvas{display:block;width:auto;height:var(--tetris-height);width:calc(var(--tetris-height) / 2);max-width:100%;background:transparent;outline:none;}
 #activity-play{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:230px;background:transparent;border:0;color:#d0abef;font-size:14px;font-weight:400;letter-spacing:.035em;padding:14px 0;white-space:nowrap;text-shadow:0 1px 12px #21102f;}
 .activity-commands{grid-column:1;grid-row:1;align-self:center;color:#c5a0e6;font-size:11px;}
 .activity-kicker{display:block;font-size:9px;letter-spacing:.2em;color:#a67fc5;margin-bottom:19px;}
@@ -462,8 +462,8 @@ body{display:grid;grid-template-rows:auto minmax(0,1fr)}
 #activity-play[hidden],.activity-commands[hidden],.activity-score[hidden],.activity-game-state[hidden],.activity-touch[hidden],.activity-mini[hidden]{display:none;}
 @keyframes activity-wait{to{background-position:-200% 0;}}
 @media(pointer:coarse){.activity-touch:not([hidden]){display:flex;}}
-@media(max-width:650px){.activity-game{grid-template-columns:100px minmax(100px,170px) 65px;gap:14px;}.activity-commands p{font-size:9px;gap:4px;}.activity-commands kbd{font-size:9px;padding:2px 3px;min-width:17px;}.activity-score strong{font-size:17px;}}
-@media(max-height:550px){.activity-surface{padding-block:20px;}.activity-game{margin-bottom:17px;}.activity-board-wrap>canvas{height:43vh;min-height:160px;}.activity-score{gap:10px;}.activity-kicker{margin-bottom:12px;}.activity-commands p{margin-bottom:8px;}.activity-progress p{margin-block:7px 12px;}.activity-surface>footer{margin-top:13px;}}
+@media(max-width:650px){.activity-game{grid-template-columns:100px minmax(100px,200px) 65px;gap:14px;--tetris-height:min(52vh,400px,calc(100vh - 230px));}.activity-commands p{font-size:9px;gap:4px;}.activity-commands kbd{font-size:9px;padding:2px 3px;min-width:17px;}.activity-score strong{font-size:17px;}}
+@media(max-height:550px){.activity-surface{padding-block:20px;}.activity-game{margin-bottom:17px;}.activity-game{--tetris-height:min(46vh,calc(100vh - 230px));}.activity-board-wrap>canvas{min-height:0;}.activity-score{gap:10px;}.activity-kicker{margin-bottom:12px;}.activity-commands p{margin-bottom:8px;}.activity-progress p{margin-block:7px 12px;}.activity-surface>footer{margin-top:13px;}}
 @media(prefers-reduced-motion:reduce){.activity-progress progress:indeterminate::-webkit-progress-bar{animation:none;}}
 
 .model-actions{display:flex;gap:6px;align-items:center}.uninstall-model{color:#c7b4ce;font-weight:500}.uninstall-model svg{width:14px;height:14px}

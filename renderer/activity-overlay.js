@@ -23,14 +23,14 @@
   const preview=find('.activity-score canvas');const previewCtx=preview.getContext('2d');
   let task=null,job=null,dismissed=false,game=null,playing=false,paused=false,frame=null,lastDrop=0,lastTime=0,best=0;
   try{best=Number(localStorage.getItem('powerbrix-tetris-best'))||0;}catch{}
-  const colors=['','#caa2ff','#bc8df4','#d4afff','#ad83df','#c799ee','#b99ae4','#d2adf5'];
+  const colors=['','#e2bcff','#d7a8ff','#ebcbff','#cea4fa','#e6b7ff','#d9b4ff','#edc9ff'];
   const bytes=n=>{if(!Number.isFinite(n))return '';return n>=2**30?(n/2**30).toFixed(1)+' GB':(n/2**20).toFixed(0)+' MB';};
-  function block(context,x,y,color,size=24,ghost=false){context.save();context.lineWidth=1;context.strokeStyle=ghost?'#bd92ed38':color;if(ghost)context.setLineDash([2,3]);context.strokeRect(x*size+1.5,y*size+1.5,size-3,size-3);context.restore();}
+  function block(context,x,y,color,size=24,ghost=false){context.save();context.lineWidth=1.5;context.strokeStyle=ghost?'#cda5fb77':color;if(ghost)context.setLineDash([2,3]);context.strokeRect(x*size+1.5,y*size+1.5,size-3,size-3);context.restore();}
   function draw(){
     ctx.clearRect(0,0,240,480);
     if(!game){
       const idle=[[0,19],[1,19],[2,19],[3,19],[4,19],[5,19],[6,19],[7,19],[8,19],[9,19],[0,18],[1,18],[4,18],[5,18],[6,18],[9,18],[0,17],[5,17],[9,17],[9,16],[4,3],[3,4],[4,4],[5,4]];
-      idle.forEach(([x,y])=>block(ctx,x,y,y<5?'#c69aef99':'#b38bd35e'));
+      idle.forEach(([x,y])=>block(ctx,x,y,y<5?'#e2baff':'#cda0f4cc'));
       return;
     }
     game.board.forEach((row,y)=>row.forEach((id,x)=>{if(id)block(ctx,x,y,colors[id]);}));
