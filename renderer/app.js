@@ -441,6 +441,7 @@ function render(){
   if (listingScroll !== undefined) root.querySelector('.workspace.listing').scrollTop = listingScroll;
   root.scrollTop = setupScroll;
   renderedPage = page;
+  window.PowerBrixActivity?.update(state);
   if(thinking)showStream();
 }
 function drawVoiceWave(time) {
@@ -695,7 +696,7 @@ root.addEventListener('click',async event=>{
   if(action==='toggle-platform'){platformOpen=!platformOpen;render();return;}
   if(action==='platform'){platformOpen=false;await perform('platform',value);return;}
   if(action==='home'){if(await perform('home')){page='chat';render();}return;}
-  if(action==='scan'){busy=true;render();await perform('scan');busy=false;render();return;}
+  if(action==='scan'){busy=true;state.scan='Preparing system analysis…';render();await perform('scan');state.scan=null;busy=false;render();return;}
   if(action==='pull'){state.pull={id:value};render();const next=await perform('pull',value);state.pull=next?.pull;render();return;}
   if(action==='use'){if(await perform('select',value)){page='chat';render();}return;}
   if(action==='new'){openConversation(null);return;}
@@ -812,7 +813,7 @@ api.onEngine(status=>{
 });
 api.onChat(delta=>{status=delta.status??status;answer=delta.answer??answer;reasoning=delta.reasoning??reasoning;showStream();});
 api.onScan(value=>{
-  if(!state)return;state.scan=value;
+  if(!state)return;state.scan=value;window.PowerBrixActivity?.update(state);
   const label=document.querySelector('#scan-status');
   if(label&&value)label.textContent=value;else render();
 });
@@ -820,6 +821,7 @@ function updatePullProgress(value) {
   if (!state) return;
   const previous = state.pull;
   state.pull = value;
+  window.PowerBrixActivity?.update(state);
   // Keep the scrolling container, hovered sidebar and focused controls alive on each progress tick.
   if (value && previous?.id === value.id) {
     const row = [...root.querySelectorAll('[data-model-id]')].find(row=>row.dataset.modelId === value.id);
