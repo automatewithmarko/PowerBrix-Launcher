@@ -32,7 +32,7 @@ const platformSupported=process.platform==='darwin'&&process.arch==='arm64'||pro
 const fixture=!app.isPackaged&&process.env.POWERBRIX_FIXTURE_MODEL;
 const fixtureModel={id:'dev-fixture',name:'Development fixture',runtime:'fixture',local:true};
 let window,settings,scan,pull,chat,writes=Promise.resolve(),enginePromise;
-let dictation;
+let dictation,engineTask,engineTarget,modelMutation=false;
 const notify=(topic,data)=>{if(window&&!window.isDestroyed())window.webContents.send('pbx:'+topic,data);};
 const attachments=new Map();
 let choosingFiles=false;
@@ -48,7 +48,15 @@ function updateView() {
   };
 }
 function sendUpdate() { notify('update',updateView()); }
-const runtime=new LocalEngine(status=>notify('engine',status));
+const runtime=new LocalEngine(status=>{
+  notify('engine',status);
+  notify('engineModel',{id:status==='stopped'?null:engineTarget||runtime.current?.id,status});
+});
+async function startModel(model,signal,progress) {
+  engineTarget=model.id;
+  try {return await runtime.start(model,model===fixtureModel?fixture:checkpoint(model,model.files[0]),engine,root,progress,signal);}
+  finally {engineTarget=null;}
+}
 const pluginIds = ['chat-history', 'microphone-typing', 'skills', 'internet-search'];
 const skillList = () => settings.skills.map(({id,name,enabled}) => ({id,name,enabled}));
 const checkpoint=(model,file)=>path.join(settings.directory,model.id,file.path);
@@ -80,7 +88,7 @@ async function snapshot() {
   const models=pickModels(catalog,settings.report,free,new Set(local),new Map(resume))
     .map(model=>({...model,filesSupported:supportsFiles(model)}));
   if(fixture)models.push(fixtureModel);
-  return {...view,skills:skillList(),actual,platformSupported,free,models,scan:scan?.status,pull:pull?.progress,engineStatus:runtime.status};
+  return {...view,skills:skillList(),actual,platformSupported,free,models,scan:scan?.status,pull:pull?.progress,engineStatus:runtime.status,engineModelId:engineTarget||runtime.current?.id||null,engineBusy:Boolean(engineTask||modelMutation)};
 }
 function action(name,handler) {
   ipcMain.handle('pbx:'+name,(event,...args)=>{
@@ -158,7 +166,7 @@ app.whenReady().then(async()=>{
   });
   action('installUpdate',async()=>{
     if(!availableUpdate||updateProgress||!app.isPackaged)return;
-    if(scan||pull||chat||dictation||choosingFiles)throw Error('Finish the current download, scan, or reply before updating.');
+    if(scan||pull||chat||dictation||choosingFiles||engineTask||modelMutation)throw Error('Finish the current download, scan, or reply before updating.');
     updateFailure=null;
     const progress=details=>{
       if(updateProgress?.phase===details.phase && updateProgress.percent===details.percent)return;
@@ -188,7 +196,7 @@ app.whenReady().then(async()=>{
     settings.onboarded=true;await save();return snapshot();
   });
   action('folder',async()=>{
-    if(scan||pull||chat)throw Error('Wait for the current task to finish first.');
+    if(scan||pull||chat||engineTask||modelMutation)throw Error('Wait for the current task to finish first.');
     const selection=await dialog.showOpenDialog(window,{title:'Choose a folder for PowerBrix models',defaultPath:settings.directory,properties:['openDirectory','createDirectory']});
     if(!selection.canceled&&selection.filePaths[0]!==settings.directory){
       await runtime.stop();
@@ -200,7 +208,7 @@ app.whenReady().then(async()=>{
     return snapshot();
   });
   action('scan',async()=>{
-    if(scan||pull||chat)throw Error('Wait for the current task to finish first.');
+    if(scan||pull||chat||engineTask||modelMutation)throw Error('Wait for the current task to finish first.');
     if(!platformSupported)throw Error('PowerBrix Launcher supports Apple Silicon Macs and Windows x64.');
     if(settings.platform!==actual)throw Error('Switch back to the detected operating system to run the native scan.');
     const progress=(status)=>{if(scan){scan.status=status;notify('scan',status);}};
@@ -217,7 +225,7 @@ app.whenReady().then(async()=>{
     return snapshot();
   });
   action('pull',async id=>{
-    if(pull||scan)throw Error('Wait for the current download or scan to finish first.');
+    if(pull||scan||modelMutation)throw Error('Wait for the current download or scan to finish first.');
     const model=catalog.find(item=>item.id===id);
     if(!model)throw Error('Unknown model.');
     const job={id,stop:new AbortController(),progress:{id,loaded:0,total:0,file:1,files:model.files.length}};
@@ -249,6 +257,48 @@ app.whenReady().then(async()=>{
     if(!((fixture&&id===fixtureModel.id)||(model&&await installed(model))))throw Error('Pull the model before selecting it.');
     settings.selected=id;await save();return snapshot();
   });
+  action('playModel',async id=>{
+    if(chat||scan||engineTask||modelMutation)throw Error('Finish the current reply or system task first.');
+    const model=catalog.find(item=>item.id===id);
+    if(!model)throw Error('Unknown model.');
+    const task={stop:new AbortController()};engineTask=task;
+    try {
+      if(!(await installed(model)))throw Error('Download this model first.');
+      settings.selected=id;await save();
+      await startModel(model,task.stop.signal,()=>{});
+    } catch(error){if(!task.stop.signal.aborted)throw error;}
+    finally {if(engineTask===task)engineTask=null;}
+    return snapshot();
+  });
+  action('stopModel',async id=>{
+    if(id!==(engineTarget||runtime.current?.id))return snapshot();
+    engineTask?.stop.abort();chat?.abort();
+    await runtime.stop();
+    return snapshot();
+  });
+  action('uninstallModel',async id=>{
+    if(chat||scan||pull||engineTask||modelMutation)throw Error('Finish the current reply, download or system task first.');
+    const model=catalog.find(item=>item.id===id);
+    if(!model)throw Error('Unknown model.');
+    modelMutation=true;
+    try {
+      const confirmation=await dialog.showMessageBox(window,{
+        type:'question',title:'Uninstall model',message:'Uninstall '+model.name+'?',
+        detail:'This removes its downloaded files from this model drive and frees storage. Your chats, skills and plugins stay saved. You can download the model again later.',
+        buttons:['Cancel','Uninstall model'],defaultId:0,cancelId:0,noLink:true,
+      });
+      if(confirmation.response!==1){modelMutation=false;return snapshot();}
+      if(runtime.current?.id===id)await runtime.stop();
+      await fs.rm(path.join(settings.directory,model.id),{recursive:true,force:true});
+      if(settings.installed[id]) {
+        delete settings.installed[id][settings.directory];
+        if(!Object.keys(settings.installed[id]).length)delete settings.installed[id];
+      }
+      if(settings.selected===id)settings.selected=null;
+      await save();
+    } finally {modelMutation=false;}
+    return snapshot();
+  });
   action('attachments',async(id,slots)=>{
     const model=catalog.find(item=>item.id===id);
     if(!supportsFiles(model)||!(await installed(model)))throw Error('This model cannot read attachments.');
@@ -276,7 +326,7 @@ app.whenReady().then(async()=>{
     }
   });
   action('chat',async(id,messages,useWebSearch=false)=>{
-    if(chat||scan)throw Error('Wait for the current scan or reply to finish first.');
+    if(chat||scan||engineTask||modelMutation)throw Error('Wait for the current scan or reply to finish first.');
     const model=fixture&&id===fixtureModel.id?fixtureModel:catalog.find(item=>item.id===id);
     if(!model||model!==fixtureModel&&!(await installed(model)))throw Error('Pull a model before starting a chat.');
     const history=cleanMessages(messages);
@@ -290,7 +340,7 @@ app.whenReady().then(async()=>{
     const prompt=history.map(({role,content})=>({role,content}));
     const enabledSkills = settings.plugins.includes('skills') ? settings.skills.filter(skill => skill.enabled) : [];
     if(quitting)throw Error('PowerBrix Launcher is closing.');
-    if(chat||scan)throw Error('A scan or reply is already running.');
+    if(chat||scan||engineTask||modelMutation)throw Error('A scan or reply is already running.');
     const controller=new AbortController();
     chat=controller;
     const progress=status=>notify('chat', {status});
@@ -300,7 +350,7 @@ app.whenReady().then(async()=>{
         progress('Searching the web…');
         sources = await searchWeb(prompt.at(-1).content,controller.signal);
       }
-      await runtime.start(model,model===fixtureModel?fixture:checkpoint(model,model.files[0]),engine,root,progress,controller.signal);
+      await startModel(model,controller.signal,progress);
       const prepared=model!==fixtureModel || documents.length || enabledSkills.length || sources.length
         ? await runtime.prepareChatContext(prompt,documents,enabledSkills,controller.signal,sources)
         : {messages:prompt};
@@ -341,7 +391,7 @@ app.on('before-quit',event=>{
   event.preventDefault();
   if(quitting)return;
   quitting=true;
-  updateAbort.abort();pull?.stop.abort();scan?.stop.abort();chat?.abort();dictation?.abort();
+  updateAbort.abort();pull?.stop.abort();scan?.stop.abort();chat?.abort();dictation?.abort();engineTask?.stop.abort();
   Promise.allSettled([runtime.stop(),writes]).finally(()=>{
     shutdownComplete=true;
     app.quit();

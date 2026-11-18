@@ -44,7 +44,7 @@
   }
   function startClock(){stopClock();if(playing&&!paused&&!game.over&&dialog.open&&!document.hidden)frame=requestAnimationFrame(tick);}
   function pause(){if(!playing||game.over)return;paused=!paused;draw();startClock();}
-  function hide(){dismissed=true;if(playing&&!game.over)paused=true;stopClock();dialog.close();mini.hidden=!task;draw();}
+  function hide(){if(task?.kind==='preview'){window.PowerBrixActivity.update({});return;}dismissed=true;if(playing&&!game.over)paused=true;stopClock();dialog.close();mini.hidden=!task;draw();}
   function open(){if(!task)return;dismissed=false;mini.hidden=true;if(!dialog.open)dialog.showModal();if(playing)board.focus();else find('#activity-play').focus();draw();startClock();}
   function action(name){if(!playing||paused||game.over)return;({left:()=>game.move(-1),right:()=>game.move(1),rotate:()=>game.rotate(),down:()=>game.down(true),drop:()=>game.drop()})[name]?.();draw();}
   find('#activity-play').addEventListener('click',()=>{game=new window.PowerBrixTetris();playing=true;paused=false;lastDrop=0;find('.activity-invitation').hidden=true;find('.activity-game').hidden=false;dialog.classList.add('is-playing');draw();board.focus();startClock();});
@@ -62,8 +62,8 @@
   find('#activity-pause-download').addEventListener('click',async()=>{const button=find('#activity-pause-download');button.disabled=true;try{await window.infer.pause();}catch{button.disabled=false;find('#activity-status').textContent='Could not pause the download. Try again.';}});
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing&&!game.over){paused=true;stopClock();draw();}});
   window.addEventListener('pagehide',stopClock);
-  window.PowerBrixActivity={update(state){
-    const next=state?.scan?{key:'scan',kind:'scan',title:'Analyzing your system',status:state.scan}:state?.pull?{key:'pull:'+state.pull.id,kind:'pull',title:'Downloading '+(state.models?.find(model=>model.id===state.pull.id)?.name||'your model'),status:state.pull.total?'Your model is downloading. Everything stays on this computer.':'Preparing your download…',...state.pull}:null;
+  window.PowerBrixActivity={preview(){this.update({preview:true});},update(state){
+    const next=state?.preview?{key:'preview',kind:'preview',title:'Waiting screen preview',status:'Demo only. No analysis or download is running.'}:state?.scan?{key:'scan',kind:'scan',title:'Analyzing your system',status:state.scan}:state?.pull?{key:'pull:'+state.pull.id,kind:'pull',title:'Downloading '+(state.models?.find(model=>model.id===state.pull.id)?.name||'your model'),status:state.pull.total?'Your model is downloading. Everything stays on this computer.':'Preparing your download…',...state.pull}:null;
     task=next;
     if(!next){stopClock();dialog.close();mini.hidden=true;job=null;dismissed=false;playing=false;game=null;return;}
     if(job!==next.key){job=next.key;dismissed=false;playing=false;paused=false;game=null;stopClock();find('.activity-invitation').hidden=false;find('.activity-game').hidden=true;dialog.classList.remove('is-playing');find('#activity-pause-download').disabled=false;}
@@ -71,8 +71,9 @@
     find('#activity-task').textContent=next.title;find('#activity-status').textContent=next.status;
     find('#activity-percent').textContent=percent===null?'':percent+'%';
     const progress=find('progress');if(percent===null)progress.removeAttribute('value');else progress.value=percent;
-    find('#activity-detail').textContent=next.kind==='scan'?'Checking your processor, memory, graphics and storage.':next.total?bytes(next.loaded)+' of '+bytes(next.total)+(next.files>1?' · File '+next.file+' of '+next.files:''):'Downloads keep running while you play.';
+    find('#activity-detail').textContent=next.kind==='preview'?'Try the game at your own pace. Close this preview when you’re done.':next.kind==='scan'?'Checking your processor, memory, graphics and storage.':next.total?bytes(next.loaded)+' of '+bytes(next.total)+(next.files>1?' · File '+next.file+' of '+next.files:''):'Downloads keep running while you play.';
     find('#activity-pause-download').hidden=next.kind!=='pull';
+    find('.activity-browse').textContent=next.kind==='preview'?'Close preview':'Keep browsing';
     mini.textContent=(next.kind==='scan'?'Analyzing system':percent===null?'Preparing download':'Downloading · '+percent+'%')+' · Play Tetris';
     if(!dismissed&&!dialog.open)open();
   }};

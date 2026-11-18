@@ -7,6 +7,8 @@ let state,page,platformOpen=false,busy=false,thinking=false,answer='',reasoning=
 let pluginQuery = '';
 let renderedPage;
 let streamReasoningOpen = false;
+let engineMenuOpen = false;
+let modelActionBusy = false;
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -43,6 +45,7 @@ const icons={
   arrow:icon('M4 12h15m-6-6 6 6-6 6'),
   send:icon('M12 20V4m-6 6 6-6 6 6'),
   plus:icon('M12 5v14M5 12h14'),
+  play:icon('M8 5v14l11-7-11-7Z'),
 };
 const svgBrand='<img class="brand-symbol" src="powerbrix-logo.png" alt=""><span class="wordmark"><img src="powerbrix-wordmark.svg" alt="PowerBrix"><small>LAUNCHER</small></span>';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -138,7 +141,7 @@ function modelRows(rows){
     const download=state.pull?.id===model.id?state.pull:null;
     const percent=download?.total?Math.floor(download.loaded/download.total*100):0;
     const action=model.local
-      ? button('use:'+model.id,'Use in Chat','btn quiet compact')
+      ? '<div class="model-actions">'+button('use:'+model.id,'Use in Chat','btn quiet compact')+(page==='models'?button('uninstall:'+model.id,icons.trash+'<span>Uninstall</span>','btn quiet compact uninstall-model',thinking||modelActionBusy||state.scan||state.pull?'disabled':''):'')+'</div>'
       : download ? button('pause','Pause','btn quiet compact')
       : button('pull:'+model.id,model.resumed?'Resume':'Pull','btn quiet compact',!model.pullable||state.pull||busy||state.scan?'disabled':'');
     return '<article class="model-row" data-model-id="'+esc(model.id)+'"><span class="tile model-mark" aria-hidden="true">'+modelLogo(model)+'</span><div class="model-body"><h3>'+esc(model.name)+variant+'</h3><p>'+[model.quantization,model.bytes?gb(model.bytes):null,model.runtime==='ssd'?'SSD streaming':model.runtime==='mapped'?'CPU / SSD mapping':model.runtime==='fixture'?'Fixture':'Memory resident'].filter(Boolean).map(esc).join(' <span>·</span> ')+'</p><small data-download-status>'+esc(download?'Downloading · '+percent+'% · File '+download.file+'/'+download.files:model.fit||'Installed')+'</small>'+(download?'<progress max="100" value="'+percent+'" aria-label="Download progress"></progress>':'')+'</div><div class="rate '+rateClass+'" title="'+esc(model.detail||'')+'">'+(model.speed!=null?'<strong>'+speed(model.speed)+' <span>TOK/S</span></strong><small>'+esc(model.source)+'</small>':model.local?'':'<small>Speed unavailable</small>')+'</div>'+action+'</article>';
@@ -190,10 +193,33 @@ function sidebar() {
   return '<aside class="sidebar" aria-label="Launcher sidebar"><div class="brand">' + svgBrand + '</div>'
     + '<nav aria-label="Workspace">' + rows + '</nav>'
     + '<div class="sidebar-bottom">'
-    + button('setup', icons.chip + '<span>System Setup</span>', 'navbtn',
-      'aria-label="System Setup" title="System Setup"')
-    + '<div class="local-label" id="engine-status" role="status" data-state="' + state.engineStatus
-    + '" title="' + statusLabel + '"><i aria-hidden="true"></i> <span>' + statusLabel + '</span></div></div></aside>';
+    + '<section id="engine-model-menu" class="engine-model-menu" aria-label="Model engines" hidden></section>'
+    + '<button type="button" class="local-label engine-toggle" id="engine-status" data-action="toggle-engine-menu" aria-expanded="false" aria-controls="engine-model-menu" data-state="' + state.engineStatus
+    + '" title="' + statusLabel + '"><i aria-hidden="true"></i> <span>' + statusLabel + '</span>'+icons.chevron+'</button></div></aside>';
+}
+
+function syncEngineMenu() {
+  const menu=root.querySelector('#engine-model-menu');
+  const toggle=root.querySelector('#engine-status');
+  if(!menu||!toggle)return;
+  root.querySelector('.sidebar').classList.toggle('engine-menu-open',engineMenuOpen);
+  toggle.setAttribute('aria-expanded',String(engineMenuOpen));
+  menu.hidden=!engineMenuOpen;
+  if(!engineMenuOpen)return;
+  const models=state.models.filter(model=>model.local&&model.runtime!=='fixture');
+  menu.innerHTML='<header><strong>Model engines</strong><small>One active model at a time</small></header>'
+    +(models.length?models.map(model=>{
+      const active=state.engineModelId===model.id&&state.engineStatus!=='stopped';
+      const status=active?state.engineStatus==='loading'?'Loading…':'Running':'Stopped';
+      return '<div class="engine-model" data-engine-model="'+esc(model.id)+'"><span class="engine-model-logo">'+modelLogo(model)+'</span><div><strong>'+esc(model.name)+'</strong><small class="'+(active?'is-active':'')+'">'+status+'</small></div>'
+        +button((active?'stop-engine:':'play-engine:')+model.id,active?icons.stop:icons.play,'engine-model-control',
+          'aria-label="'+(active?'Stop ':'Load ')+esc(model.name)+'" title="'+(active?'Stop and unload':'Play: load model')+'" '+(!active&&(modelActionBusy||thinking||state.scan)?'disabled':''))+'</div>';
+    }).join(''):'<p>No models downloaded yet.</p>')
+    +button('discover','Discover models '+icons.arrow,'engine-discover');
+}
+function toggleEngineMenu(open) {
+  engineMenuOpen=open;syncEngineMenu();
+  if(!open)root.querySelector('#engine-status')?.focus();
 }
 
 function chatModels() {
@@ -408,7 +434,7 @@ function workspace(){
   if(page==='chat')return sidebar()+chatArea();
   if(page==='plugins')return sidebar()+pluginsPage();
   let local=page==='models';
-  return sidebar()+'<main class="workspace listing"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>'+ (local?'My Models':'Discover Models')+'</h2></div>'+button('scan',state.scan?'Analyzing…':'Analyze System','btn secondary compact',state.scan||busy||state.pull||!state.platformSupported||state.platform!==state.actual?'disabled':'')+'</header><div class="listing-content"><h1>'+(local?'Your <em>Local Models.</em>':'Find Your <em>Next Model.</em>')+'</h1><p>'+(local?'Models you have downloaded on the selected drive.':'Compare storage requirements and estimated performance, then pull a model to use it locally.')+'</p>'+(state.scan?'<p class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></p>':'')+(local?'':machine()+analysisNotice())+catalogPanel(state.models.filter(model=>local?model.local:model.runtime!=='fixture'))+'</div></main>';
+  return sidebar()+'<main class="workspace listing"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>'+ (local?'My Models':'Discover Models')+'</h2></div><div class="listing-tools">'+(demo?button('preview-wait','Preview Tetris','btn secondary compact'):'')+button('scan',state.scan?'Analyzing…':'Analyze System','btn secondary compact',state.scan||busy||state.pull||!state.platformSupported||state.platform!==state.actual?'disabled':'')+'</div></header><div class="listing-content"><h1>'+(local?'Your <em>Local Models.</em>':'Find Your <em>Next Model.</em>')+'</h1><p>'+(local?'Models you have downloaded on the selected drive.':'Compare storage requirements and estimated performance, then pull a model to use it locally.')+'</p>'+(state.scan?'<p class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></p>':'')+(local?'':machine()+analysisNotice())+catalogPanel(state.models.filter(model=>local?model.local:model.runtime!=='fixture'))+'</div></main>';
 }
 function render(){
   const focused=document.activeElement?.id==='prompt';
@@ -440,6 +466,7 @@ function render(){
   if(samePage && scroll && document.querySelector('#chat-scroll')) document.querySelector('#chat-scroll').scrollTop=scroll;
   if (listingScroll !== undefined) root.querySelector('.workspace.listing').scrollTop = listingScroll;
   root.scrollTop = setupScroll;
+  syncEngineMenu();
   renderedPage = page;
   window.PowerBrixActivity?.update(state);
   if(thinking)showStream();
@@ -614,6 +641,7 @@ function applyCommand(search) {
 }
 
 document.addEventListener('pointerdown',event=>{
+  if(engineMenuOpen&&!event.target.closest('.sidebar-bottom')){engineMenuOpen=false;syncEngineMenu();}
   if (modelMenuOpen && !event.target.closest('.model-picker')) setModelMenu(false);
   if (skillsMenuOpen && !event.target.closest('.skills-picker, #skill-dialog')) setSkillsMenu(false);
   const menu = document.querySelector('#prompt-commands');
@@ -672,6 +700,18 @@ root.addEventListener('click',async event=>{
     page=action;
     render();
     if(event.detail===0) root.querySelector(`.sidebar [data-action="${action}"]`)?.focus();
+    return;
+  }
+  if(action==='preview-wait'&&demo){window.PowerBrixActivity?.preview();return;}
+  if(action==='toggle-engine-menu'){toggleEngineMenu(!engineMenuOpen);return;}
+  if(action==='play-engine'||action==='stop-engine'||action==='uninstall') {
+    if(modelActionBusy&&action!=='stop-engine')return;
+    modelActionBusy=true;syncEngineMenu();el.disabled=true;
+    try {
+      const next=await api[action==='play-engine'?'playModel':action==='stop-engine'?'stopModel':'uninstallModel'](value);
+      if(next?.models)state=next;
+    } catch(error){tell(error);}
+    finally{modelActionBusy=false;render();}
     return;
   }
   if(action==='toggle-model-menu'){setModelMenu(!modelMenuOpen);return;}
@@ -736,6 +776,7 @@ root.addEventListener('keydown',event=>{
       return;
     }
   }
+  if(event.key==='Escape'&&engineMenuOpen){event.preventDefault();toggleEngineMenu(false);return;}
   if(event.key==='Escape'&&skillsMenuOpen){event.preventDefault();setSkillsMenu(false,true);return;}
   if(event.key==='Escape'&&modelMenuOpen){event.preventDefault();setModelMenu(false,true);return;}
   const direction=event.key==='ArrowDown'?1:event.key==='ArrowUp'?-1:0;
@@ -810,6 +851,12 @@ api.onEngine(status=>{
   if (!state || !Object.hasOwn(engineLabels,status)) return;
   state.engineStatus=status;
   updateEngineStatus(status);
+  syncEngineMenu();
+});
+api.onEngineModel?.(view=>{
+  if(!state||!Object.hasOwn(engineLabels,view.status))return;
+  state.engineModelId=view.id;state.engineStatus=view.status;
+  updateEngineStatus(view.status);syncEngineMenu();
 });
 api.onChat(delta=>{status=delta.status??status;answer=delta.answer??answer;reasoning=delta.reasoning??reasoning;showStream();});
 api.onScan(value=>{
@@ -839,7 +886,7 @@ function updatePullProgress(value) {
   render();
 }
 api.onPull(updatePullProgress);
-api.state().then(data=>{state=data;if(historyOn())readHistory();page=demo?'plugins':state.onboarded&&state.report?.machine?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
+api.state().then(data=>{state=data;if(historyOn())readHistory();page=demo?'models':state.onboarded&&state.report?.machine?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
 
 const skillDialog = document.querySelector('#skill-dialog');
 const skillForm = document.querySelector('#skill-form');
