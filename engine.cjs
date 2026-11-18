@@ -24,7 +24,10 @@ function processOutput(executable,args,{env,signal,onProgress}={}) {
       onProgress?.(line.trim().split(/\r?\n/).at(-1));
     });
     child.once('error',reject);
-    child.once('close',code=>code===0?resolve(stdout):reject(Error(stderr.trim() || executable+' exited with '+code)));
+    child.once('close',code=>{
+      if (code===0) resolve(stdout);
+      else reject(Object.assign(Error(stderr.trim() || executable+' exited with '+code),{stdout,stderr,exitCode:code}));
+    });
   });
 }
 
@@ -129,19 +132,72 @@ async function ensureMappedEngine(root, progress, signal) {
   finally { mappedInstalls.delete(directory); }
 }
 
+function analysisProgress(line) {
+  if (/CPU probe|measure cpu|measure compute/i.test(line)) return 'Measuring processor performance…';
+  if (/GPU probe|measure gpus|GPUs unknown/i.test(line)) return 'Checking graphics performance…';
+  if (/SSD probe|measure storage/i.test(line)) return 'Measuring your model drive’s speed…';
+  if (/topology|memory size|measure memory/i.test(line)) return 'Checking your processor and memory…';
+  if (/reading machine identity/i.test(line)) return 'Identifying your computer…';
+  return 'Preparing your analysis results…';
+}
+
 async function profileMachine(engine, root, modelsDirectory, progress, reprofile, signal) {
   if (process.env.POWERBRIX_PROFILE_REPORT) {
     return JSON.parse(await fs.readFile(process.env.POWERBRIX_PROFILE_REPORT,'utf8'));
   }
-  progress('Measuring CPU, memory, GPU and model storage…');
-  const args=['profile','--json','--model',modelsDirectory,'--output',path.join(root,'machine.json')];
+  progress('Measuring your processor, memory, graphics and storage…');
+  const profilePath = path.join(root,'machine.json');
+  const args=['profile','--json','--model',modelsDirectory,'--output',profilePath];
   if (reprofile) args.push('--reprofile');
-  const raw=await processOutput(engine.launcher,args,{
-    env:engine.env,signal:AbortSignal.any([AbortSignal.timeout(900000),...(signal?[signal]:[])]),onProgress:progress,
-  });
-  const report=JSON.parse(raw);
-  if (!report.machine || !Array.isArray(report.estimates)) throw Error('Unexpected machine profile format.');
-  return report;
+  const stop = AbortSignal.any([AbortSignal.timeout(900000),...(signal?[signal]:[])]);
+  let raw, failure;
+  try {
+    raw = await processOutput(engine.launcher,args,{
+      env:engine.env,signal:stop,onProgress:line=>progress(analysisProgress(line)),
+    });
+  } catch (error) {
+    if (stop.aborted) {
+      throw Error(signal?.aborted ? 'System analysis was stopped. You can try again.'
+        : 'System analysis took too long. Please try Analyze System again.',{cause:error});
+    }
+    // The profiler writes a complete report before returning 1 for a failed measurement.
+    if (error.exitCode !== 1 || !error.stdout?.trim()) {
+      throw Error('System analysis couldn’t finish. Please try Analyze System again.',{cause:error});
+    }
+    raw = error.stdout;
+    failure = error;
+  }
+  let report, saved;
+  try {
+    report = JSON.parse(raw);
+    saved = JSON.parse(await fs.readFile(profilePath,'utf8'));
+    if (!report.machine || !Array.isArray(report.estimates) || !saved.sections
+        || typeof saved.sections !== 'object' || Array.isArray(saved.sections)
+        || Object.values(saved.sections).some(section=>!section || typeof section.status !== 'string')
+        || !Number.isFinite(report.machine.memory_bytes) || report.machine.memory_bytes <= 0) {
+      throw Error('Incomplete hardware results.');
+    }
+  } catch (error) {
+    throw Error('System analysis couldn’t read your hardware results. Please try again.',{cause:failure || error});
+  }
+  const incomplete = Object.entries(saved.sections).filter(([,section])=>['failed','partial'].includes(section.status));
+  if (failure && !incomplete.length) {
+    throw Error('System analysis couldn’t finish. Please try Analyze System again.',{cause:failure});
+  }
+  const warnings = new Set();
+  for (const [name] of incomplete) {
+    if (name === 'gpus') {
+      warnings.add('We couldn’t measure your graphics card’s performance. You can continue with CPU-compatible models, but GPU speed estimates are unavailable. Check your graphics driver and run Analyze System again to retry.');
+    } else if (name.startsWith('storage:')) {
+      warnings.add('We couldn’t measure your model drive’s speed. You can continue, but SSD speed estimates may be unavailable.');
+    } else if (name === 'memory') {
+      warnings.add('Your RAM capacity was detected, but its speed couldn’t be measured. Some speed estimates may be unavailable.');
+    } else {
+      warnings.add('Some processor performance measurements couldn’t finish. You can continue, but CPU speed estimates may be unavailable.');
+    }
+  }
+  progress('Your hardware results are ready.');
+  return {...report,analysisWarnings:[...warnings],gpuMeasurementUnavailable:incomplete.some(([name])=>name==='gpus')};
 }
 
 function localPort() {

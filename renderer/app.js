@@ -147,17 +147,25 @@ function machine(){
   const items=[
     ['Processor',m.cpu,m.logical_cpus?m.logical_cpus+' threads':''],
     ['Memory',gb(m.memory_bytes),bandwidth(m.memory_read_Bps)],
-    ['GPU',m.gpus?.join(', ')||'CPU mode',''],
+    ['GPU',m.gpus?.join(', ')||(state.report.gpuMeasurementUnavailable?'Unavailable':'CPU mode'),state.report.gpuMeasurementUnavailable?'Measurement unavailable':''],
     ['Model drive',m.models_drive?.model||'Storage',bandwidth(m.models_drive?.read_Bps)],
   ];
   return '<div class="specs">'+items.map(([key,val,detail])=>'<div><small>'+key+'</small><strong>'+esc(val)+'</strong><span>'+esc(detail)+'</span></div>').join('')+'</div>';
 }
 function systems(){
-  return '<div class="system-line"><span><i></i>'+ (state.report?'System analyzed':'Setup')+'</span><span> / </span><span>'+esc(osLabels[state.platform])+'</span></div>';
+  return '<div class="system-line"><span><i></i>'+ (state.scan?'Analyzing system':state.report?.machine?'System analyzed':'Setup')+'</span><span> / </span><span>'+esc(osLabels[state.platform])+'</span></div>';
+}
+function analysisNotice() {
+  const warnings = state.report?.analysisWarnings || [];
+  if (!warnings.length || state.scan) return '';
+  return '<div class="analysis-notice" role="status"><strong>Analysis finished with a warning</strong>'
+    +warnings.map(message=>'<p>'+esc(message)+'</p>').join('')
+    +button('scan','Retry analysis','textbtn',busy||state.pull?'disabled':'')+'</div>';
 }
 function onboarding(){
-  if(!state.report)return '<main class="setup welcome"><div class="brand">'+svgBrand+'</div><section>'+systems()+'<h1>Setting Up For <em>'+esc(osLabels[state.platform])+'</em></h1><p>Find out which AI models you can run on this computer, how fast they might respond, and what you can do with them.</p><div class="setup-actions">'+button('scan',state.scan?'Analyzing system…':'Analyze System '+icons.arrow,'btn primary',busy||state.scan||state.platform!==state.actual||!state.platformSupported?'disabled':'')+'<div class="platform">'+button('toggle-platform','Change device','btn secondary','aria-expanded="'+platformOpen+'"')+(platformOpen?'<div class="options">'+['mac','windows'].map(key=>button('platform:'+key,osLabels[key],'btn quiet')).join('')+'</div>':'')+'</div></div>'+ (state.scan?'<div class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></div>':state.platform!==state.actual?'<p class="scan-note">This computer reports '+esc(osLabels[state.actual])+'. Switch back to run the native scan.</p>':!state.platformSupported?'<p class="scan-note">Native scanning requires an Apple Silicon Mac or Windows x64 PC.</p>':'<p class="scan-note">The scan runs on this device. No model is downloaded until you choose one.</p>')+'</section><footer>'+button('home','Go to Home '+icons.arrow,'textbtn')+'</footer></main>';
-  return '<main class="setup results"><div class="setup-header"><div class="brand">'+svgBrand+'</div>'+button('home','Go to Home '+icons.arrow,'textbtn')+'</div>'+systems()+'<h1>See What Your <em>Machine Can Run.</em></h1><p>Choose a model to pull. Speeds estimate text generation on this machine.</p>'+machine()+catalogPanel(state.models)+'<footer>'+button('home','Go to Home '+icons.arrow,'btn primary')+'</footer></main>';
+  const homeReady = !state.scan && !busy;
+  if(!state.report?.machine)return '<main class="setup welcome"><div class="brand">'+svgBrand+'</div><section>'+systems()+'<h1>Setting Up For <em>'+esc(osLabels[state.platform])+'</em></h1><p>Find out which AI models you can run on this computer, how fast they might respond, and what you can do with them.</p><div class="setup-actions">'+button('scan',state.scan?'Analyzing system…':'Analyze System '+icons.arrow,'btn primary',busy||state.scan||state.platform!==state.actual||!state.platformSupported?'disabled':'')+'<div class="platform">'+button('toggle-platform','Change device','btn secondary','aria-expanded="'+platformOpen+'"')+(platformOpen?'<div class="options">'+['mac','windows'].map(key=>button('platform:'+key,osLabels[key],'btn quiet')).join('')+'</div>':'')+'</div></div>'+ (state.scan?'<div class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></div>':state.platform!==state.actual?'<p class="scan-note">This computer reports '+esc(osLabels[state.actual])+'. Switch back to run the native scan.</p>':!state.platformSupported?'<p class="scan-note">Native scanning requires an Apple Silicon Mac or Windows x64 PC.</p>':'<p class="scan-note">The scan runs on this device. No model is downloaded until you choose one.</p>')+'</section></main>';
+  return '<main class="setup results"><div class="setup-header"><div class="brand">'+svgBrand+'</div>'+(homeReady?button('home','Go to Home '+icons.arrow,'textbtn'):'')+'</div>'+systems()+'<h1>See What Your <em>Machine Can Run.</em></h1><p>Choose a model to pull. Speeds estimate text generation on this machine.</p>'+(state.scan?'<div class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></div>':'')+machine()+analysisNotice()+catalogPanel(state.models)+'<footer>'+(homeReady?button('home','Go to Home '+icons.arrow,'btn primary'):'')+'</footer></main>';
 }
 function catalogPanel(rows){
   return '<section class="catalog"><header><div><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+button('folder','Change storage','btn secondary compact',state.pull||busy?'disabled':'')+'</header>'+modelRows(rows)+'<footer>Estimates vary with context and hardware. SSD streaming can run models larger than RAM, provided they fit on your drive.</footer></section>';
@@ -387,7 +395,7 @@ function workspace(){
   if(page==='chat')return sidebar()+chatArea();
   if(page==='plugins')return sidebar()+pluginsPage();
   let local=page==='models';
-  return sidebar()+'<main class="workspace listing"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>'+ (local?'My Models':'Discover Models')+'</h2></div>'+button('scan',state.scan?'Analyzing…':'Analyze System','btn secondary compact',state.scan||busy||state.pull||!state.platformSupported||state.platform!==state.actual?'disabled':'')+'</header><div class="listing-content"><h1>'+(local?'Your <em>Local Models.</em>':'Find Your <em>Next Model.</em>')+'</h1><p>'+(local?'Models you have downloaded on the selected drive.':'Compare storage requirements and estimated performance, then pull a model to use it locally.')+'</p>'+(state.scan?'<p class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></p>':'')+(local?'':machine())+catalogPanel(state.models.filter(model=>local?model.local:model.runtime!=='fixture'))+'</div></main>';
+  return sidebar()+'<main class="workspace listing"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>'+ (local?'My Models':'Discover Models')+'</h2></div>'+button('scan',state.scan?'Analyzing…':'Analyze System','btn secondary compact',state.scan||busy||state.pull||!state.platformSupported||state.platform!==state.actual?'disabled':'')+'</header><div class="listing-content"><h1>'+(local?'Your <em>Local Models.</em>':'Find Your <em>Next Model.</em>')+'</h1><p>'+(local?'Models you have downloaded on the selected drive.':'Compare storage requirements and estimated performance, then pull a model to use it locally.')+'</p>'+(state.scan?'<p class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></p>':'')+(local?'':machine()+analysisNotice())+catalogPanel(state.models.filter(model=>local?model.local:model.runtime!=='fixture'))+'</div></main>';
 }
 function render(){
   const focused=document.activeElement?.id==='prompt';
@@ -752,7 +760,7 @@ api.onScan(value=>{
   if(label&&value)label.textContent=value;else render();
 });
 api.onPull(value=>{if(state){state.pull=value;render();}});
-api.state().then(data=>{state=data;if(historyOn())readHistory();page=demo?'plugins':state.onboarded?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
+api.state().then(data=>{state=data;if(historyOn())readHistory();page=demo?'plugins':state.onboarded&&state.report?.machine?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
 
 const skillDialog = document.querySelector('#skill-dialog');
 const skillForm = document.querySelector('#skill-form');

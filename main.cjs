@@ -183,7 +183,10 @@ app.whenReady().then(async()=>{
     if(!['mac','windows'].includes(value)||scan)throw Error('Choose macOS or Windows before scanning.');
     settings.platform=value;await save();return snapshot();
   });
-  action('home',async()=>{settings.onboarded=true;await save();return snapshot();});
+  action('home',async()=>{
+    if (scan || !settings.report?.machine) throw Error('Finish Analyze System before going to Home.');
+    settings.onboarded=true;await save();return snapshot();
+  });
   action('folder',async()=>{
     if(scan||pull||chat)throw Error('Wait for the current task to finish first.');
     const selection=await dialog.showOpenDialog(window,{title:'Choose a folder for PowerBrix models',defaultPath:settings.directory,properties:['openDirectory','createDirectory']});
@@ -205,7 +208,9 @@ app.whenReady().then(async()=>{
     progress(scan.status);
     try {
       await runtime.stop();
-      const runner=await engine(progress);
+      const runner=await engine(progress).catch(error=>{
+        throw Error('The system analysis tool couldn’t be prepared. Check your internet connection and try again.',{cause:error});
+      });
       settings.report=await profileMachine(runner,root,settings.directory,progress,true,scan.stop.signal);
       await save();
     } finally {scan=null;notify('scan',null);}

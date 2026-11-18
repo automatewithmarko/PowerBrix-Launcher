@@ -415,3 +415,17 @@ body{display:grid;grid-template-rows:auto minmax(0,1fr)}
 .web-sources { margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--edge); font-size: 12px; }
 .web-sources ol { margin: 5px 0 0; padding-left: 21px; }
 .web-source { background: transparent; color: #ddc4ff; border: 0; padding: 2px 0; text-align: left; text-decoration: underline; }
+
+.analysis-notice {
+  padding: 18px 20px;
+  margin: 20px 0 24px;
+  border: 1px solid #d4bb7940;
+  border-radius: 12px;
+  background: #d4bb7909;
+  color: #e5d9bd;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.analysis-notice strong { display: block; color: #f0e7d4; font-weight: 600; }
+.analysis-notice p { margin: 6px 0 0; max-width: 80ch; color: #c6bbcf; font-size: inherit; }
+.analysis-notice .textbtn { display: inline-flex; margin-top: 10px; font-size: 12px; color: #e5d3fc; }
