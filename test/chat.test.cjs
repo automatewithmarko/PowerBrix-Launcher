@@ -1,0 +1,55 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const http=require('node:http');
+const {LocalEngine}=require('../engine.cjs');
+
+async function chatServer(t,body) {
+  const requests=[];
+  const server=http.createServer(async(req,res)=>{
+    let raw='';for await(const chunk of req)raw+=chunk;
+    requests.push(JSON.parse(raw));
+    res.writeHead(200,{'Content-Type':'text/event-stream'});
+    // Split events inside JSON, just as real network chunks can arrive.
+    for(let start=0;start<body.length;start+=13)res.write(body.slice(start,start+13));
+    res.end();
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const engine=new LocalEngine(()=>{});
+  engine.current={base:'http://127.0.0.1:'+server.address().port,key:'test-key',model:'qwen',maxTokens:4096};
+  return {engine,requests};
+}
+const event=choice=>'data: '+JSON.stringify({choices:[choice]})+'\n\n';
+
+test('streaming keeps reasoning and a complete answer separate with an adequate output budget',async t=>{
+  const {engine,requests}=await chatServer(t,event({delta:{reasoning_content:'Think carefully.'}})
+    +event({delta:{content:'Here is the complete answer.'}})+event({delta:{},finish_reason:'stop'})+'data: [DONE]\n\n');
+  const updates=[];
+  const result=await engine.chat([{role:'user',content:'Explain this'}],AbortSignal.timeout(3000),delta=>updates.push(delta));
+  assert.deepEqual(result,{answer:'Here is the complete answer.',reasoning:'Think carefully.',finishReason:'stop'});
+  assert.equal(requests[0].max_tokens,4096);
+  assert.equal(requests[0].reasoning_format,'deepseek');
+  assert.equal(updates.at(-1).reasoning,'Think carefully.');
+});
+test('a length-limited response is reported instead of silently presented as complete',async t=>{
+  const {engine}=await chatServer(t,event({delta:{reasoning:'Planning'}})+event({delta:{content:'An unfinished'}})
+    +'data: '+JSON.stringify({choices:[{delta:{},finish_reason:'length'}]}));
+  assert.deepEqual(await engine.chat([{role:'user',content:'Explain'}],AbortSignal.timeout(3000),()=>{}),
+    {answer:'An unfinished',reasoning:'Planning',finishReason:'length'});
+});
+test('an unexpectedly closed stream preserves text and marks it interrupted',async t=>{
+  const {engine}=await chatServer(t,event({delta:{content:'Partial response'}}));
+  const result=await engine.chat([{role:'user',content:'Explain'}],AbortSignal.timeout(3000),()=>{});
+  assert.equal(result.answer,'Partial response');
+  assert.equal(result.finishReason,'interrupted');
+});
+test('ordinary chats trim older context while reserving room for thinking and the answer',async()=>{
+  const engine=new LocalEngine(()=>{});
+  engine.current={contextTokens:4096,maxTokens:2048};
+  engine.tokenizer=async(_route,{content})=>({tokens:Array(content.length).fill(1)});
+  const messages=[{role:'user',content:'old '.repeat(500)},{role:'assistant',content:'answer '.repeat(300)},
+    {role:'user',content:'New question'}];
+  const result=await engine.prepareChatContext(messages,[],[],new AbortController().signal);
+  assert.deepEqual(result.messages,[messages[2]]);
+  assert.equal(result.shortened,true);
+});

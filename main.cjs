@@ -301,11 +301,11 @@ app.whenReady().then(async()=>{
         sources = await searchWeb(prompt.at(-1).content,controller.signal);
       }
       await runtime.start(model,model===fixtureModel?fixture:checkpoint(model,model.files[0]),engine,root,progress,controller.signal);
-      const prepared=documents.length || enabledSkills.length || sources.length
+      const prepared=model!==fixtureModel || documents.length || enabledSkills.length || sources.length
         ? await runtime.prepareChatContext(prompt,documents,enabledSkills,controller.signal,sources)
         : {messages:prompt};
       progress('Generating on this device…');
-      return {answer:await runtime.chat(prepared.messages,controller.signal,delta=>notify('chat',delta)),
+      return {...await runtime.chat(prepared.messages,controller.signal,delta=>notify('chat',delta)),
         shortened:prepared.shortened,sources:prepared.sources};
     } catch(error) {
       if(controller.signal.aborted)return {stopped:true};

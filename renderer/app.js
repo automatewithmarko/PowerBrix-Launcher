@@ -6,6 +6,7 @@ if (demo) document.title = 'PowerBrix Launcher Demo';
 let state,page,platformOpen=false,busy=false,thinking=false,answer='',reasoning='',status='',toastTimer;
 let pluginQuery = '';
 let renderedPage;
+let streamReasoningOpen = false;
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -327,12 +328,23 @@ function renderSources(sources) {
     '<li>'+button('open-source',esc(source.title),'web-source','data-source-url="'+esc(source.url)+'"')+'</li>').join('')+'</ol></div>';
 }
 
+function reasoningPanel(text, open, key) {
+  if (!text) return '';
+  return '<details class="model-reasoning" data-reasoning-turn="'+esc(key)+'"'+(open?' open':'')+'><summary>Model reasoning</summary><div class="reasoning-text">'+esc(text)+'</div></details>';
+}
+function responseNote(turn) {
+  if (turn.finishReason === 'length') return '<small class="response-note">Response reached its length limit. Ask the model to continue.</small>';
+  if (turn.finishReason === 'interrupted') return '<small class="response-note">Response interrupted. You can ask the model to continue.</small>';
+  if (turn.finishReason === 'cancelled') return '<small class="response-note">Response stopped.</small>';
+  return '';
+}
 function chatArea(){
   const active=activeChatModel();
-  const messages=turns.map(turn=>'<div class="message '+turn.role+'">'
+  const messages=turns.map((turn,index)=>'<div class="message '+turn.role+'">'
+    +(turn.role==='assistant'?reasoningPanel(turn.reasoning,turn.reasoningOpen,index):'')
     +fileChips(turn.attachments,false)+(turn.webSearch?'<span class="message-web-command">/web-search</span> ':'')+esc(turn.content)
-    +renderSources(turn.sources)
-    +(turn.shortened?'<small class="file-note">Used excerpts to fit the model’s context.</small>':'')+'</div>').join('');
+    +renderSources(turn.sources)+responseNote(turn)
+    +(turn.shortened?'<small class="file-note">Used the most recent context and relevant excerpts.</small>':'')+'</div>').join('');
   const welcome='<div class="chat-welcome"><span class="tile">'+icons.chat+'</span><h1>What Can I <em>Help With?</em></h1><p>Your models. Your machine. Your conversation.</p></div>';
   const streaming=thinking?'<div class="message assistant streaming" id="stream"><span>'+esc(status)+'</span></div>':'';
   const header = '<header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>AI Chat</h2></div>'
@@ -493,9 +505,33 @@ async function finishDictation() {
 function showStream(){
   const node=document.querySelector('#stream');
   if(!node)return;
-  node.innerHTML=(reasoning?'<details><summary>Model reasoning</summary><p>'+esc(reasoning)+'</p></details>':'')+(answer?'<div>'+esc(answer)+'</div>':'<span>'+esc(status)+'</span>');
-  const area=document.querySelector('#chat-scroll'); area.scrollTop=area.scrollHeight;
+  const area=document.querySelector('#chat-scroll');
+  const follow = area && area.scrollHeight-area.scrollTop-area.clientHeight < 80;
+  let panel=node.querySelector('.model-reasoning');
+  if (reasoning && !panel) {
+    node.insertAdjacentHTML('afterbegin',reasoningPanel(reasoning,streamReasoningOpen,'stream'));
+    panel=node.querySelector('.model-reasoning');
+  }
+  if (panel) panel.querySelector('.reasoning-text').textContent=reasoning;
+  let output=node.querySelector('.stream-answer');
+  if (!output) {
+    // Replace the initial status once, keeping the reasoning disclosure connected thereafter.
+    for (const child of [...node.children]) if (child !== panel) child.remove();
+    output=document.createElement('div');output.className='stream-answer';node.append(output);
+  }
+  output.textContent=answer || status;
+  output.classList.toggle('stream-status',!answer);
+  if(follow && area)area.scrollTop=area.scrollHeight;
 }
+root.addEventListener('toggle',event=>{
+  const panel=event.target;
+  if (!panel.matches?.('[data-reasoning-turn]')) return;
+  if (panel.dataset.reasoningTurn==='stream') streamReasoningOpen=panel.open;
+  else {
+    const turn=turns[Number(panel.dataset.reasoningTurn)];
+    if (turn) turn.reasoningOpen=panel.open;
+  }
+},true);
 async function perform(action,...args){
   try {const next=await api[action](...args);if(next?.models){state=next;render();}return next;}
   catch(error){tell(error);}
@@ -753,11 +789,17 @@ root.addEventListener('submit',async event=>{
   const attachments=pendingFiles;
   const content=query||'Summarize the attached files.';
   drafts.delete(draftKey());pendingFiles=[];modelMenuOpen=false;skillsMenuOpen=false;
-  turns.push({role:'user',content,attachments,webSearch:useWebSearch});thinking=true;status=useWebSearch?'Searching the web…':'Starting local model…';answer='';reasoning='';render();
-  const history=turns.slice(-35).map(turn=>({role:turn.role,content:turn.content,
+  turns.push({role:'user',content,attachments,webSearch:useWebSearch});thinking=true;status=useWebSearch?'Searching the web…':'Starting local model…';answer='';reasoning='';streamReasoningOpen=false;render();
+  const chatScroll=document.querySelector('#chat-scroll');
+  if(chatScroll)chatScroll.scrollTop=chatScroll.scrollHeight;
+  const history=turns.filter(turn=>turn.content?.trim()).slice(-35).map(turn=>({role:turn.role,content:turn.content,
     files:(turn.attachments||[]).map(file=>file.id)}));
   const data=await perform('chat',active.id,history,useWebSearch);
-  if(data?.answer||answer)turns.push({role:'assistant',content:data?.answer||answer,shortened:data?.shortened,sources:data?.sources});
+  if(data?.answer||answer||data?.reasoning||reasoning)turns.push({
+    role:'assistant',content:data?.answer||answer,reasoning:data?.reasoning||reasoning,
+    reasoningOpen:streamReasoningOpen,finishReason:data?.finishReason||(data?.stopped?'cancelled':!data?'interrupted':null),
+    shortened:data?.shortened,sources:data?.sources,
+  });
   else if(!data?.stopped){turns.pop();pendingFiles=attachments;drafts.set(draftKey(),typed);}
   thinking=false;saveConversation();render();
   const area=document.querySelector('#chat-scroll');if(area)area.scrollTop=area.scrollHeight;

@@ -275,14 +275,14 @@ class LocalEngine {
       const fixture=model.runtime==='fixture';
       const native=model.runtime==='native' || model.runtime==='gemma' || model.runtime==='mapped' || fixture;
       const args=native
-        ? ['--host','127.0.0.1','--port',String(port),'-m',checkpoint,'-c',fixture?'512':model.runtime==='mapped'?'8192':'4096','-np','1','--no-webui']
-        : ['serve','--host','127.0.0.1','--port',String(port),'-m',checkpoint,'--context','4096','--machine',path.join(root,'machine.json')];
+        ? ['--host','127.0.0.1','--port',String(port),'-m',checkpoint,'-c',fixture?'512':'8192','-np','1','--no-webui']
+        : ['serve','--host','127.0.0.1','--port',String(port),'-m',checkpoint,'--context','8192','--machine',path.join(root,'machine.json')];
       if (fixture) args.push('-ngl','0');
       if (model.runtime==='mapped') args.push('-ngl','0','--load-mode','mmap','--lazy-mode','on','--no-warmup','--fit','off');
       if (!native && !(await fs.stat(path.join(root,'machine.json')).catch(()=>null))) args.splice(-2);
       signal.throwIfAborted();
       const child=spawn(native?engine.server:engine.launcher,args,{
-        env:{...engine.env,LLAMA_API_KEY:key},windowsHide:true,
+        env:{...engine.env,LLAMA_API_KEY:key,LLAMA_ARG_THINK_BUDGET:fixture?'32':'768',LLAMA_ARG_THINK:'deepseek'},windowsHide:true,
         detached:process.platform!=='win32',stdio:['ignore','pipe','pipe'],
       });
       let logs='', failure;
@@ -291,7 +291,7 @@ class LocalEngine {
       });
       child.once('error',error=>{failure=error;});
       const closed=new Promise(resolve=>child.once('close',resolve));
-      const instance={id:model.id,child,closed,key,maxTokens:model.runtime==='mapped'?4096:512,base:'http://127.0.0.1:'+port};
+      const instance={id:model.id,child,closed,key,maxTokens:fixture?128:4096,contextTokens:fixture?512:8192,base:'http://127.0.0.1:'+port};
       this.current=instance;
       child.once('close',()=>{
         if (this.current!==instance || instance.stopping) return;
@@ -312,6 +312,14 @@ class LocalEngine {
           if (payload.data?.[0]?.id) {
             signal.throwIfAborted();
             instance.model=payload.data[0].id;
+            const props = await fetch(instance.base+'/props',{
+              headers:{Authorization:'Bearer '+key},signal:AbortSignal.any([signal,AbortSignal.timeout(1500)]),
+            }).then(response=>response.ok?response.json():null).catch(()=>null);
+            const context = props?.default_generation_settings?.n_ctx;
+            if (Number.isSafeInteger(context) && context >= 512) {
+              instance.contextTokens = Math.min(instance.contextTokens,context);
+              instance.maxTokens = Math.min(instance.maxTokens,Math.floor(instance.contextTokens/2));
+            }
             instance.ready=true;
             this.setStatus('running');
             return instance;
@@ -337,6 +345,8 @@ class LocalEngine {
   }
 
   async prepareChatContext(messages, documents, skills, signal, sources = []) {
+    const inputBudget = Math.min(3100,(this.current.contextTokens || 8192)-(this.current.maxTokens || 4096)-256);
+    const contentBudget = inputBudget-100;
     const count=async content=>(await this.tokenizer('/tokenize',{content,add_special:false},signal)).tokens;
     const user=messages.at(-1);
     const instructions = skills.length
@@ -345,7 +355,7 @@ class LocalEngine {
         + '\n\nUser request:\n'
       : '';
     let content = instructions + user.content;
-    const available=3000-(sources.length?620:0)-(await count(content)).length;
+    const available=contentBudget-(sources.length?620:0)-(await count(content)).length;
     if (skills.length && available < (documents.length ? 350 : 0)) {
       throw Error('The enabled skills and prompt exceed the context budget. Turn off a skill or shorten your prompt.');
     }
@@ -372,13 +382,13 @@ class LocalEngine {
         + 'Answer using relevant results, cite their source numbers like [1], and say if the results do not support a claim.';
       for (const source of sources) {
         const entry = '\n' + JSON.stringify({source:usedSources.length+1,title:source.title,snippet:source.snippet});
-        if ((await count(content+entry)).length > 3000) break;
+        if ((await count(content+entry)).length > contentBudget) break;
         content += entry;
         usedSources.push({title:source.title,url:source.url});
       }
       if (!usedSources.length) throw Error('Shorten your prompt or turn off a skill to make room for web search results.');
     }
-    let remaining=3100-(await count(content)).length;
+    let remaining=inputBudget-(await count(content)).length;
     if(remaining<0)throw Error('Shorten your message to make room for the attached text.');
     const kept=[{role:'user',content}];
     for(let index=messages.length-2;index>=0;index--){
@@ -388,6 +398,7 @@ class LocalEngine {
       kept.unshift(message);
     }
     if(kept[0].role==='assistant')kept.shift();
+    shortened ||= kept.length < messages.length;
     return {messages:kept,shortened,sources:usedSources};
   }
 
@@ -395,31 +406,40 @@ class LocalEngine {
     const {base,key,model}=this.current;
     const response=await fetch(base+'/v1/chat/completions',{
       method:'POST',signal,headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-      body:JSON.stringify({model,messages,stream:true,max_tokens:this.current.maxTokens || 512}),
+      body:JSON.stringify({model,messages,stream:true,reasoning_format:'deepseek',max_tokens:this.current.maxTokens || 4096}),
     });
     if (!response.ok) {
       const data=await response.json().catch(()=>null);
       throw Error(data?.error?.message || 'The local engine returned HTTP '+response.status+'.');
     }
     const reader=response.body.pipeThrough(new TextDecoderStream());
-    let buffer='', answer='', reasoning='';
+    let buffer='', answer='', reasoning='', finishReason=null, done=false;
+    const consume = line => {
+      if (!line.startsWith('data:')) return;
+      const data=line.slice(5).trim();
+      if (!data) return;
+      if (data==='[DONE]') {done=true;return;}
+      const payload=JSON.parse(data);
+      if (payload.error) throw Error(payload.error.message || 'The model could not complete this request.');
+      const choice=payload.choices?.[0];
+      const delta=choice?.delta;
+      const thought=delta?.reasoning_content ?? delta?.reasoning;
+      if (typeof thought==='string') reasoning+=thought;
+      if (typeof delta?.content==='string') answer+=delta.content;
+      if (choice?.finish_reason) finishReason=choice.finish_reason;
+      if (thought || delta?.content) onDelta({reasoning,answer});
+    };
     for await (const chunk of reader) {
       buffer+=chunk;
       const lines=buffer.split('\n');
       buffer=lines.pop();
       for (const line of lines) {
-        if (!line.startsWith('data:')) continue;
-        const data=line.slice(5).trim();
-        if (!data) continue;
-        if (data==='[DONE]') return answer;
-        const payload=JSON.parse(data);
-        if (payload.error) throw Error(payload.error.message || 'The model could not complete this request.');
-        const delta=payload.choices?.[0]?.delta;
-        if (delta?.reasoning_content) { reasoning+=delta.reasoning_content; onDelta({reasoning,answer}); }
-        if (delta?.content) { answer+=delta.content; onDelta({reasoning,answer}); }
+        consume(line);
+        if (done) return {answer,reasoning,finishReason:finishReason || 'interrupted'};
       }
     }
-    return answer;
+    if (buffer.trim()) consume(buffer);
+    return {answer,reasoning,finishReason:finishReason || 'interrupted'};
   }
 }
 
