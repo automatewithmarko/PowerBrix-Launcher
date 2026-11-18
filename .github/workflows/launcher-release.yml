@@ -104,6 +104,11 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           name=$(node -p "require('./new-update.json').name.trim()")
-          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "$name" --notes "$name" --draft
-          gh release upload "v$VERSION" new-update.json release/*
+          if gh release view "v$VERSION" --json isDraft > existing-release.json 2>/dev/null; then
+            node -e "if (!require('./existing-release.json').isDraft) throw Error('This version is already published.');"
+            gh release edit "v$VERSION" --target "$GITHUB_SHA" --title "$name"
+          else
+            gh release create "v$VERSION" --target "$GITHUB_SHA" --title "$name" --notes "$name" --draft
+          fi
+          gh release upload "v$VERSION" new-update.json release/* --clobber
           gh release edit "v$VERSION" --draft=false --latest
