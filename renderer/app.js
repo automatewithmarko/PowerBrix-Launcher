@@ -5,6 +5,7 @@ const demo = new URLSearchParams(location.search).get('demo') === '1';
 if (demo) document.title = 'PowerBrix Launcher Demo';
 let state,page,platformOpen=false,busy=false,thinking=false,answer='',reasoning='',status='',toastTimer;
 let pluginQuery = '';
+let renderedPage;
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -139,7 +140,7 @@ function modelRows(rows){
       ? button('use:'+model.id,'Use in Chat','btn quiet compact')
       : download ? button('pause','Pause','btn quiet compact')
       : button('pull:'+model.id,model.resumed?'Resume':'Pull','btn quiet compact',!model.pullable||state.pull||busy||state.scan?'disabled':'');
-    return '<article class="model-row"><span class="tile model-mark" aria-hidden="true">'+modelLogo(model)+'</span><div class="model-body"><h3>'+esc(model.name)+variant+'</h3><p>'+[model.quantization,model.bytes?gb(model.bytes):null,model.runtime==='ssd'?'SSD streaming':model.runtime==='mapped'?'CPU / SSD mapping':model.runtime==='fixture'?'Fixture':'Memory resident'].filter(Boolean).map(esc).join(' <span>·</span> ')+'</p><small>'+esc(download?'Downloading · '+percent+'% · File '+download.file+'/'+download.files:model.fit||'Installed')+'</small>'+(download?'<progress max="100" value="'+percent+'" aria-label="Download progress"></progress>':'')+'</div><div class="rate '+rateClass+'" title="'+esc(model.detail||'')+'">'+(model.speed!=null?'<strong>'+speed(model.speed)+' <span>TOK/S</span></strong><small>'+esc(model.source)+'</small>':model.local?'':'<small>Speed unavailable</small>')+'</div>'+action+'</article>';
+    return '<article class="model-row" data-model-id="'+esc(model.id)+'"><span class="tile model-mark" aria-hidden="true">'+modelLogo(model)+'</span><div class="model-body"><h3>'+esc(model.name)+variant+'</h3><p>'+[model.quantization,model.bytes?gb(model.bytes):null,model.runtime==='ssd'?'SSD streaming':model.runtime==='mapped'?'CPU / SSD mapping':model.runtime==='fixture'?'Fixture':'Memory resident'].filter(Boolean).map(esc).join(' <span>·</span> ')+'</p><small data-download-status>'+esc(download?'Downloading · '+percent+'% · File '+download.file+'/'+download.files:model.fit||'Installed')+'</small>'+(download?'<progress max="100" value="'+percent+'" aria-label="Download progress"></progress>':'')+'</div><div class="rate '+rateClass+'" title="'+esc(model.detail||'')+'">'+(model.speed!=null?'<strong>'+speed(model.speed)+' <span>TOK/S</span></strong><small>'+esc(model.source)+'</small>':model.local?'':'<small>Speed unavailable</small>')+'</div>'+action+'</article>';
   }).join('');
 }
 function machine(){
@@ -401,8 +402,19 @@ function render(){
   const focused=document.activeElement?.id==='prompt';
   const searchFocused=document.activeElement?.id==='plugin-search';
   const scroll=document.querySelector('#chat-scroll')?.scrollTop;
+  const samePage = renderedPage === page;
+  const listingScroll = samePage ? root.querySelector('.workspace.listing')?.scrollTop : undefined;
+  const setupScroll = samePage ? root.scrollTop : 0;
   root.className=page==='setup'?'app setup-mode':'app desk';
-  root.innerHTML=page==='setup'?onboarding():workspace();
+  const existingSidebar = samePage ? root.querySelector('.sidebar') : null;
+  if (existingSidebar) {
+    const next = document.createElement('template');
+    next.innerHTML = workspace();
+    next.content.querySelector('.sidebar').remove();
+    for (const child of [...root.children]) if (child !== existingSidebar) child.remove();
+    root.append(next.content);
+    updateEngineStatus(state.engineStatus);
+  } else root.innerHTML=page==='setup'?onboarding():workspace();
   if(page==='plugins') {
     filterPlugins();
     if(searchFocused) root.querySelector('#plugin-search').focus();
@@ -413,7 +425,10 @@ function render(){
     updatePromptHighlight(prompt);
   }
   if(focused)document.querySelector('#prompt')?.focus();
-  if(scroll)document.querySelector('#chat-scroll').scrollTop=scroll;
+  if(samePage && scroll && document.querySelector('#chat-scroll')) document.querySelector('#chat-scroll').scrollTop=scroll;
+  if (listingScroll !== undefined) root.querySelector('.workspace.listing').scrollTop = listingScroll;
+  root.scrollTop = setupScroll;
+  renderedPage = page;
   if(thinking)showStream();
 }
 function drawVoiceWave(time) {
@@ -759,7 +774,27 @@ api.onScan(value=>{
   const label=document.querySelector('#scan-status');
   if(label&&value)label.textContent=value;else render();
 });
-api.onPull(value=>{if(state){state.pull=value;render();}});
+function updatePullProgress(value) {
+  if (!state) return;
+  const previous = state.pull;
+  state.pull = value;
+  // Keep the scrolling container, hovered sidebar and focused controls alive on each progress tick.
+  if (value && previous?.id === value.id) {
+    const row = [...root.querySelectorAll('[data-model-id]')].find(row=>row.dataset.modelId === value.id);
+    const progress = row?.querySelector('progress');
+    const label = row?.querySelector('[data-download-status]');
+    if (progress && label) {
+      const percent = value.total ? Math.min(100, Math.floor(value.loaded / value.total * 100)) : 0;
+      progress.value = percent;
+      label.textContent = 'Downloading · '+percent+'% · File '+value.file+'/'+value.files;
+      return;
+    }
+    // Other pages have no download row to update, so leave their UI alone.
+    if (!row) return;
+  }
+  render();
+}
+api.onPull(updatePullProgress);
 api.state().then(data=>{state=data;if(historyOn())readHistory();page=demo?'plugins':state.onboarded&&state.report?.machine?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
 
 const skillDialog = document.querySelector('#skill-dialog');
