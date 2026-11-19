@@ -12,7 +12,7 @@ let modelActionBusy = false;
 let liveMetrics = null;
 let regeneratingIndex = null;
 let editingIndex = null,editingDraft = '';
-let apiInfo=null,apiModelId=null,apiModelOpen=false,apiLoading=false;
+let apiInfo=null,apiModelId=null,apiModelOpen=false,apiLoading=false,apiRequestFormat='curl';
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -499,14 +499,20 @@ function apiExamples(){
 }
 function apiPage(){
   const {model,models,curl,http}=apiExamples();
-  const code=(label,kind,text)=>'<section class="api-code"><header><strong>'+label+'</strong>'+button('copy-api:'+kind,icons.copy,'message-action','aria-label="Copy '+label+' request" title="Copy request"')+'</header><pre><code>'+esc(text)+'</code></pre></section>';
-  return '<main class="workspace api-workspace"><div class="api-content"><header class="api-heading"><span class="eyebrow">YOUR MODELS, CONNECTED</span><h1>API Configuration</h1><p>Connect your local models to your apps, scripts and workflows.</p></header>'
-    +'<section class="api-key-section"><div class="api-key-heading"><h2>API Key</h2>'+button('regenerate-api-key',icons.restart+' Regenerate key','btn secondary compact',!apiInfo?.running||apiLoading?'disabled':'')+'</div><div class="api-key-box"><code>'+esc(apiInfo?.key|| (apiLoading?'Preparing your local API…':'API unavailable'))+'</code>'+button('copy-api:key',icons.copy,'message-action','aria-label="Copy API key" title="Copy API key" '+(!apiInfo?.key?'disabled':''))+'</div><p>One key for your local models. Keep it private. Regenerating it replaces the previous key.</p></section>'
-    +'<section class="api-availability">'+icons.chip+'<div><h2>Your computer is your API server.</h2><p>Keep your computer awake and PowerBrix Launcher open. When a request selects a stopped model, Launcher loads it automatically, then generates the response. Loading can take a moment.</p></div></section>'
+  const code=()=>'<section class="api-code"><header><div class="api-request-tabs" role="tablist" aria-label="Request format">'
+    +['curl','http'].map(format=>button('api-format:'+format,format==='curl'?'cURL':'HTTP','api-request-tab',
+      'role="tab" id="api-format-'+format+'" aria-controls="api-request-panel" aria-selected="'+(apiRequestFormat===format)+'" tabindex="'+(apiRequestFormat===format?0:-1)+'"')).join('')
+    +'</div>'+button('copy-api:'+apiRequestFormat,icons.copy,'message-action','aria-label="Copy '+(apiRequestFormat==='curl'?'cURL':'HTTP')+' request" title="Copy request"')+'</header>'
+    +'<pre id="api-request-panel" role="tabpanel" aria-labelledby="api-format-'+apiRequestFormat+'" tabindex="0"><code>'+esc(apiRequestFormat==='curl'?curl:http)+'</code></pre></section>';
+  return '<main class="workspace api-workspace"><div class="api-content"><header class="api-heading"><h1>API Configuration</h1></header>'
+    +'<section class="api-key-section"><div class="api-key-box"><div class="api-key-value"><h2>API Key</h2><code>'+esc(apiInfo?.key||(apiLoading?'Preparing your local API…':'API unavailable'))+'</code></div><div class="api-key-actions">'
+    +button('copy-api:key',icons.copy,'message-action','aria-label="Copy API key" title="Copy API key" '+(!apiInfo?.key?'disabled':''))
+    +button('regenerate-api-key',icons.restart,'message-action','aria-label="Regenerate API key" title="Regenerate API key" '+(!apiInfo?.running||apiLoading?'disabled':''))+'</div></div><p>Keep your key private. Regenerating it replaces the key used by your integrations.</p></section>'
+    +'<section class="api-availability" aria-label="API availability"><div><span class="api-availability-label"><i></i> Available while you are</span><h2>Keep Launcher open.<br>Let your models do the rest.</h2></div><div class="api-availability-details"><p><strong>Computer awake. Launcher running.</strong>Your computer powers every API response. The API is available while both are on.</p><p><strong>No manual model switching.</strong>Requests automatically load stopped models before generating a response.</p></div></section>'
     +(!apiInfo?.running?'<div class="api-service-note" role="status">'+esc(apiInfo?.error||(apiLoading?'Starting your local API…':'Your local API is not running.'))+button('retry-api','Retry','textbtn',apiLoading?'disabled':'')+'</div>':'<p class="api-status"><i></i> API running <code>'+esc(apiInfo.baseUrl)+'</code></p>')
-    +'<section class="api-documentation"><h2>Make your first request</h2><p>Choose a downloaded model. Both examples update with its ID and your API key.</p><div class="api-model-picker"><label>Model</label>'+button('toggle-api-model',(model?modelLogo(model)+'<span>'+esc(model.name)+'</span>':'<span>No models downloaded</span>')+icons.chevron,'api-model-toggle','aria-haspopup="listbox" aria-expanded="'+apiModelOpen+'" '+(!models.length?'disabled':''))
+    +'<section class="api-documentation"><h2>Make your first request</h2><p>Choose a downloaded model. Your request updates with its ID and your API key.</p><div class="api-model-picker"><label>Model</label>'+button('toggle-api-model',(model?modelLogo(model)+'<span>'+esc(model.name)+'</span>':'<span>No models downloaded</span>')+icons.chevron,'api-model-toggle','aria-haspopup="listbox" aria-expanded="'+apiModelOpen+'" '+(!models.length?'disabled':''))
     +(apiModelOpen?'<div class="api-model-options" role="listbox" aria-label="Installed models">'+models.map(item=>button('api-model:'+item.id,modelLogo(item)+'<span>'+esc(item.name)+'</span>','', 'role="option" aria-selected="'+(item.id===model?.id)+'"')).join('')+'</div>':'')+'</div>'
-    +(models.length?code('cURL','curl',curl)+code('HTTP','http',http):'<div class="api-empty"><p>Download a model to create your first request.</p>'+button('discover','Discover Models','btn secondary compact')+'</div>')
+    +(models.length?code():'<div class="api-empty"><p>Download a model to create your first request.</p>'+button('discover','Discover Models','btn secondary compact')+'</div>')
     +'<div class="api-guide"><h3>How requests work</h3><ol><li>Send a POST request to <code>/v1/chat/completions</code> with your key in the Bearer authorization header.</li><li>Use an installed model ID and text messages. An optional first <code>system</code> message can set instructions.</li><li>Read the answer in <code>choices[0].message.content</code>. Thinking, when provided, is separate in <code>reasoning_content</code>.</li></ol><h3>Streaming and generation options</h3><p>Set <code>stream</code> to <code>true</code> for server-sent events ending in <code>[DONE]</code>. Optional settings: <code>max_tokens</code> (1–4096), <code>temperature</code> (0–2), and <code>top_p</code> (above 0, up to 1). Requests currently support text, without attachments or tool calls.</p><h3>List your models</h3><p>Use <code>GET '+esc(apiInfo?.baseUrl||'http://127.0.0.1:38473/v1')+'/models</code> with the same authorization header to list installed model IDs.</p><h3>Running locally</h3><p>This address works on this computer only. Access from another device requires a separate network setup. The API stops if Launcher closes or your computer sleeps. If another reply or system task is active, the API returns <code>409</code>; retry when it finishes. A regenerated key invalidates the old key.</p></div></section></div></main>';
 }
 
@@ -533,7 +539,7 @@ function render(){
   const searchFocused=document.activeElement?.id==='plugin-search';
   const scroll=document.querySelector('#chat-scroll')?.scrollTop;
   const samePage = renderedPage === page;
-  const listingScroll = samePage ? root.querySelector('.workspace.listing')?.scrollTop : undefined;
+  const workspaceScroll = samePage ? root.querySelector('.workspace')?.scrollTop : undefined;
   const setupScroll = samePage ? root.scrollTop : 0;
   root.className=page==='setup'?'app setup-mode':'app desk';
   const existingSidebar = samePage ? root.querySelector('.sidebar') : null;
@@ -559,7 +565,7 @@ function render(){
   if(focused)document.querySelector('#prompt')?.focus();
   if(editFocused){const editor=root.querySelector('[data-message-editor]');if(editor){editor.focus();editor.setSelectionRange(...editSelection);}}
   if(samePage && scroll && document.querySelector('#chat-scroll')) document.querySelector('#chat-scroll').scrollTop=scroll;
-  if (listingScroll !== undefined) root.querySelector('.workspace.listing').scrollTop = listingScroll;
+  if (workspaceScroll !== undefined) root.querySelector('.workspace').scrollTop = workspaceScroll;
   root.scrollTop = setupScroll;
   syncEngineMenu();
   renderedPage = page;
@@ -800,6 +806,7 @@ root.addEventListener('click',async event=>{
     if(event.detail===0) root.querySelector(`.sidebar [data-action="${action}"]`)?.focus();
     return;
   }
+  if(action==='api-format'&&['curl','http'].includes(value)){apiRequestFormat=value;render();root.querySelector('[data-action="api-format:'+value+'"]')?.focus({preventScroll:true});return;}
   if(action==='toggle-api-model'){apiModelOpen=!apiModelOpen;render();return;}
   if(action==='api-model'){apiModelId=value;apiModelOpen=false;render();return;}
   if(action==='retry-api'){await loadApiConfiguration();return;}
@@ -903,6 +910,7 @@ root.addEventListener('keydown',event=>{
       return;
     }
   }
+  if(event.target.closest('.api-request-tabs')&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();apiRequestFormat=event.key==='Home'?'curl':event.key==='End'?'http':apiRequestFormat==='curl'?'http':'curl';render();root.querySelector('[data-action="api-format:'+apiRequestFormat+'"]')?.focus({preventScroll:true});return;}
   if(event.key==='Escape'&&apiModelOpen){event.preventDefault();apiModelOpen=false;render();return;}
   if(event.target.closest('.api-model-options')&&['ArrowUp','ArrowDown','Home','End'].includes(event.key)){
     event.preventDefault();const options=[...root.querySelectorAll('.api-model-options button')];const index=options.indexOf(event.target);const target=event.key==='Home'?0:event.key==='End'?options.length-1:(index+(event.key==='ArrowDown'?1:-1)+options.length)%options.length;options[target]?.focus();return;
