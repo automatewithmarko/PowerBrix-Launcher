@@ -13,6 +13,7 @@ let liveMetrics = null;
 let regeneratingIndex = null;
 let editingIndex = null,editingDraft = '';
 let apiInfo=null,apiModelId=null,apiModelOpen=false,apiLoading=false,apiRequestFormat='curl';
+let apiCodeTransition=0;
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -497,13 +498,52 @@ function apiExamples(){
   const curl=['curl '+url.href,'  -H "Authorization: Bearer '+key+'"','  -H "Content-Type: application/json"',"  -d '"+body+"'"].join(' '+String.fromCharCode(92)+'\n');
   return {model,models,curl,http:'POST '+url.pathname+' HTTP/1.1\nHost: '+url.host+'\nAuthorization: Bearer '+key+'\nContent-Type: application/json\nContent-Length: '+new TextEncoder().encode(body).length+'\n\n'+body};
 }
+function setApiModelMenu(open,restoreFocus=false){
+  apiModelOpen=open;
+  const toggle=root.querySelector('.api-model-toggle'),menu=root.querySelector('.api-model-options');
+  if(!toggle||!menu)return;
+  toggle.setAttribute('aria-expanded',String(open));menu.dataset.open=String(open);
+  menu.setAttribute('aria-hidden',String(!open));menu.inert=!open;
+  if(restoreFocus)toggle.focus({preventScroll:true});
+}
+function updateApiModel(){
+  const {model}=apiExamples();const toggle=root.querySelector('.api-model-toggle');
+  if(toggle&&model)toggle.innerHTML=modelLogo(model)+'<span>'+esc(model.name)+'</span>'+icons.chevron;
+  root.querySelectorAll('.api-model-options [data-action]').forEach(option=>option.setAttribute('aria-selected',String(option.dataset.action==='api-model:'+model?.id)));
+}
+function setApiFormat(format,focus=false){
+  if(!['curl','http'].includes(format))return;
+  const changed=apiRequestFormat!==format;apiRequestFormat=format;
+  const tabs=root.querySelector('.api-request-tabs');if(!tabs)return;tabs.dataset.format=format;
+  tabs.querySelectorAll('[role=tab]').forEach(tab=>{const selected=tab.dataset.action==='api-format:'+format;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;});
+  if(focus)tabs.querySelector('[aria-selected=true]')?.focus({preventScroll:true});
+  if(changed)void updateApiRequestContent();
+}
+async function updateApiRequestContent(){
+  const panel=root.querySelector('#api-request-panel'),body=root.querySelector('.api-code-body');if(!panel||!body)return;
+  const transition=++apiCodeTransition;
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const oldHeight=body.getBoundingClientRect().height;
+  panel.getAnimations().forEach(animation=>animation.cancel());body.getAnimations().forEach(animation=>animation.cancel());
+  if(!reduced){await panel.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-3px)'}],{duration:90,easing:'ease-out',fill:'forwards'}).finished.catch(()=>{});}
+  if(transition!==apiCodeTransition||!panel.isConnected)return;
+  const examples=apiExamples();panel.querySelector('code').textContent=examples[apiRequestFormat];panel.setAttribute('aria-labelledby','api-format-'+apiRequestFormat);
+  const copy=root.querySelector('.api-code header .message-action');if(copy){copy.dataset.action='copy-api:'+apiRequestFormat;copy.setAttribute('aria-label','Copy '+(apiRequestFormat==='curl'?'cURL':'HTTP')+' request');}
+  const height=body.getBoundingClientRect().height;
+  panel.getAnimations().forEach(animation=>animation.cancel());
+  if(!reduced){
+    body.animate([{height:oldHeight+'px'},{height:height+'px'}],{duration:220,easing:'cubic-bezier(.2,.8,.2,1)'});
+    panel.animate([{opacity:0,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:200,easing:'cubic-bezier(.2,.8,.2,1)'});
+  }
+}
+
 function apiPage(){
   const {model,models,curl,http}=apiExamples();
-  const code=()=>'<section class="api-code"><header><div class="api-request-tabs" role="tablist" aria-label="Request format">'
+  const code=()=>'<section class="api-code"><header><div class="api-request-tabs" data-format="'+apiRequestFormat+'" role="tablist" aria-label="Request format">'
     +['curl','http'].map(format=>button('api-format:'+format,format==='curl'?'cURL':'HTTP','api-request-tab',
       'role="tab" id="api-format-'+format+'" aria-controls="api-request-panel" aria-selected="'+(apiRequestFormat===format)+'" tabindex="'+(apiRequestFormat===format?0:-1)+'"')).join('')
     +'</div>'+button('copy-api:'+apiRequestFormat,icons.copy,'message-action','aria-label="Copy '+(apiRequestFormat==='curl'?'cURL':'HTTP')+' request" title="Copy request"')+'</header>'
-    +'<pre id="api-request-panel" role="tabpanel" aria-labelledby="api-format-'+apiRequestFormat+'" tabindex="0"><code>'+esc(apiRequestFormat==='curl'?curl:http)+'</code></pre></section>';
+    +'<div class="api-code-body"><pre id="api-request-panel" role="tabpanel" aria-labelledby="api-format-'+apiRequestFormat+'" tabindex="0"><code>'+esc(apiRequestFormat==='curl'?curl:http)+'</code></pre></div></section>';
   return '<main class="workspace api-workspace"><div class="api-content"><header class="api-heading"><h1>API Configuration</h1></header>'
     +'<section class="api-key-section"><div class="api-key-box"><div class="api-key-value"><h2>API Key</h2><code>'+esc(apiInfo?.key||(apiLoading?'Preparing your local API…':'API unavailable'))+'</code></div><div class="api-key-actions">'
     +button('copy-api:key',icons.copy,'message-action','aria-label="Copy API key" title="Copy API key" '+(!apiInfo?.key?'disabled':''))
@@ -511,7 +551,7 @@ function apiPage(){
     +'<section class="api-availability" aria-label="API availability"><div><span class="api-availability-label"><i></i> Available while you are</span><h2>Keep Launcher open.<br>Let your models do the rest.</h2></div><div class="api-availability-details"><p><strong>Computer awake. Launcher running.</strong>Your computer powers every API response. The API is available while both are on.</p><p><strong>No manual model switching.</strong>Requests automatically load stopped models before generating a response.</p></div></section>'
     +(!apiInfo?.running?'<div class="api-service-note" role="status">'+esc(apiInfo?.error||(apiLoading?'Starting your local API…':'Your local API is not running.'))+button('retry-api','Retry','textbtn',apiLoading?'disabled':'')+'</div>':'<p class="api-status"><i></i> API running <code>'+esc(apiInfo.baseUrl)+'</code></p>')
     +'<section class="api-documentation"><h2>Make your first request</h2><p>Choose a downloaded model. Your request updates with its ID and your API key.</p><div class="api-model-picker"><label>Model</label>'+button('toggle-api-model',(model?modelLogo(model)+'<span>'+esc(model.name)+'</span>':'<span>No models downloaded</span>')+icons.chevron,'api-model-toggle','aria-haspopup="listbox" aria-expanded="'+apiModelOpen+'" '+(!models.length?'disabled':''))
-    +(apiModelOpen?'<div class="api-model-options" role="listbox" aria-label="Installed models">'+models.map(item=>button('api-model:'+item.id,modelLogo(item)+'<span>'+esc(item.name)+'</span>','', 'role="option" aria-selected="'+(item.id===model?.id)+'"')).join('')+'</div>':'')+'</div>'
+    +'<div class="api-model-options" data-open="'+apiModelOpen+'" aria-hidden="'+!apiModelOpen+'" '+(apiModelOpen?'':'inert')+' role="listbox" aria-label="Installed models">'+models.map(item=>button('api-model:'+item.id,modelLogo(item)+'<span>'+esc(item.name)+'</span>','', 'role="option" aria-selected="'+(item.id===model?.id)+'"')).join('')+'</div></div>'
     +(models.length?code():'<div class="api-empty"><p>Download a model to create your first request.</p>'+button('discover','Discover Models','btn secondary compact')+'</div>')
     +'<div class="api-guide"><h3>How requests work</h3><ol><li>Send a POST request to <code>/v1/chat/completions</code> with your key in the Bearer authorization header.</li><li>Use an installed model ID and text messages. An optional first <code>system</code> message can set instructions.</li><li>Read the answer in <code>choices[0].message.content</code>. Thinking, when provided, is separate in <code>reasoning_content</code>.</li></ol><h3>Streaming and generation options</h3><p>Set <code>stream</code> to <code>true</code> for server-sent events ending in <code>[DONE]</code>. Optional settings: <code>max_tokens</code> (1–4096), <code>temperature</code> (0–2), and <code>top_p</code> (above 0, up to 1). Requests currently support text, without attachments or tool calls.</p><h3>List your models</h3><p>Use <code>GET '+esc(apiInfo?.baseUrl||'http://127.0.0.1:38473/v1')+'/models</code> with the same authorization header to list installed model IDs.</p><h3>Running locally</h3><p>This address works on this computer only. Access from another device requires a separate network setup. The API stops if Launcher closes or your computer sleeps. If another reply or system task is active, the API returns <code>409</code>; retry when it finishes. A regenerated key invalidates the old key.</p></div></section></div></main>';
 }
@@ -744,7 +784,7 @@ function applyCommand(search) {
 
 document.addEventListener('pointerdown',event=>{
   if(engineMenuOpen&&!event.target.closest('.sidebar-bottom')){engineMenuOpen=false;syncEngineMenu();}
-  if(apiModelOpen&&!event.target.closest('.api-model-picker')){apiModelOpen=false;if(page==='api')render();}
+  if(apiModelOpen&&!event.target.closest('.api-model-picker'))setApiModelMenu(false);
   if (modelMenuOpen && !event.target.closest('.model-picker')) setModelMenu(false);
   if (skillsMenuOpen && !event.target.closest('.skills-picker, #skill-dialog')) setSkillsMenu(false);
   const menu = document.querySelector('#prompt-commands');
@@ -806,9 +846,9 @@ root.addEventListener('click',async event=>{
     if(event.detail===0) root.querySelector(`.sidebar [data-action="${action}"]`)?.focus();
     return;
   }
-  if(action==='api-format'&&['curl','http'].includes(value)){apiRequestFormat=value;render();root.querySelector('[data-action="api-format:'+value+'"]')?.focus({preventScroll:true});return;}
-  if(action==='toggle-api-model'){apiModelOpen=!apiModelOpen;render();return;}
-  if(action==='api-model'){apiModelId=value;apiModelOpen=false;render();return;}
+  if(action==='api-format'&&['curl','http'].includes(value)){setApiFormat(value);return;}
+  if(action==='toggle-api-model'){setApiModelMenu(!apiModelOpen);return;}
+  if(action==='api-model'){apiModelId=value;setApiModelMenu(false,true);updateApiModel();void updateApiRequestContent();return;}
   if(action==='retry-api'){await loadApiConfiguration();return;}
   if(action==='regenerate-api-key'){
     el.disabled=true;try{apiInfo=await api.regenerateApiKey();}catch(error){tell(error);}finally{render();}return;
@@ -910,8 +950,9 @@ root.addEventListener('keydown',event=>{
       return;
     }
   }
-  if(event.target.closest('.api-request-tabs')&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();apiRequestFormat=event.key==='Home'?'curl':event.key==='End'?'http':apiRequestFormat==='curl'?'http':'curl';render();root.querySelector('[data-action="api-format:'+apiRequestFormat+'"]')?.focus({preventScroll:true});return;}
-  if(event.key==='Escape'&&apiModelOpen){event.preventDefault();apiModelOpen=false;render();return;}
+  if(event.target.closest('.api-request-tabs')&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();setApiFormat(event.key==='Home'?'curl':event.key==='End'?'http':apiRequestFormat==='curl'?'http':'curl',true);return;}
+  if(event.key==='Escape'&&apiModelOpen){event.preventDefault();setApiModelMenu(false,true);return;}
+  if(event.target.matches('[data-action="toggle-api-model"]')&&['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();setApiModelMenu(true);root.querySelector('.api-model-options [aria-selected="true"]')?.focus({preventScroll:true});return;}
   if(event.target.closest('.api-model-options')&&['ArrowUp','ArrowDown','Home','End'].includes(event.key)){
     event.preventDefault();const options=[...root.querySelectorAll('.api-model-options button')];const index=options.indexOf(event.target);const target=event.key==='Home'?0:event.key==='End'?options.length-1:(index+(event.key==='ArrowDown'?1:-1)+options.length)%options.length;options[target]?.focus();return;
   }
