@@ -11,6 +11,7 @@ const {freeSpace,pickModels}=require('./device.cjs');
 const {ensureEngine,profileMachine,LocalEngine}=require('./engine.cjs');
 const {findWhisper,transcribe}=require('./dictation.cjs');
 const {searchWeb,safeUrl}=require('./web-search.cjs');
+const {resolveInstalledPlugins}=require('./renderer/plugin-catalog.js');
 const {ProjectStore}=require('./projects.cjs');
 const {LocalApi,ApiError}=require('./api.cjs');
 
@@ -158,7 +159,9 @@ app.whenReady().then(async()=>{
       settings.report.hardwareProfile={compute:hardware.compute,gpus:hardware.gpus,memory:hardware.memory};
     }catch{}
   }
-  settings.plugins = Array.isArray(settings.plugins) ? [...new Set(settings.plugins.filter(id=>typeof id==='string'))] : [];
+  const previousPlugins=JSON.stringify(settings.plugins);
+  settings.plugins=resolveInstalledPlugins(settings.plugins);
+  if(JSON.stringify(settings.plugins)!==previousPlugins)await save();
   if (!Array.isArray(settings.skills)) settings.skills = [];
   await fs.mkdir(settings.directory,{recursive:true,mode:0o700});
   action('state',snapshot);
@@ -207,10 +210,8 @@ app.whenReady().then(async()=>{
   action('installPlugin',async id=>{
     if (!pluginIds.includes(id)) throw Error('This plugin is unavailable.');
     if (id === 'microphone-typing') await findWhisper();
-    if (!settings.plugins.includes(id)) {
-      settings.plugins.push(id);
-      await save();
-    }
+    const installed=resolveInstalledPlugins(settings.plugins,id);
+    if(JSON.stringify(installed)!==JSON.stringify(settings.plugins)){settings.plugins=installed;await save();}
     if(id==='api')await ensureLocalApi();
     return {plugins:[...settings.plugins]};
   });

@@ -494,14 +494,7 @@ function chatArea(){
     +(historyOn()?'<dialog id="history-dialog" aria-labelledby="history-dialog-title"><form id="history-form"><h2 id="history-dialog-title"></h2><p></p><label>Chat name<input name="title" maxlength="80" required></label><div>'
       +button('cancel-history','Cancel','btn secondary compact')+'<button type="submit" class="btn primary compact">Save</button></div></form></dialog>':'')+(hasPlugin('projects')?projectDialogs():'')+'</main>';
 }
-const plugins = [
-  {id:'projects',name:'Projects',icon:'projects',description:'Organize your work with shared local files, instructions, and multiple chats.'},
-  {id:'chat-history', name:'Chat History', icon:'history', description:'Save and revisit past conversations with your local AI.'},
-  {id:'microphone-typing', name:'Microphone Typing', icon:'mic', description:'Speak into your microphone and turn your words into a prompt.'},
-  {id:'skills', name:'Skills', icon:'skills', description:'Give your models reusable instructions for the tasks you do most often.'},
-  {id:'api',name:'API',icon:'api',description:'Create an API for your local models.'},
-  {id:'internet-search', name:'Internet Search', icon:'globe', description:'Find current information on the web and bring sources into your chat.'},
-];
+const plugins=window.PowerBrixPlugins.plugins;
 
 function projectsSection(){
  if(!hasPlugin('projects'))return '';
@@ -953,9 +946,10 @@ root.addEventListener('click',async event=>{
   if (action === 'install-plugin') {
     el.disabled = true;
     try {
+      const hadHistory=historyOn();
       const next = await api.installPlugin(value);
       state.plugins = next.plugins;
-      if (value === 'chat-history'||value==='projects') readHistory();
+      if(!hadHistory&&historyOn())readHistory();
       if(value==='projects')projectList=await api.projects('list');
       render();
     } catch(error) {
