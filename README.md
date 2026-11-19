@@ -83,7 +83,7 @@ Install v0.1.7 or later once to get in-app updates. The launcher checks GitHub w
 
 In **Plugins**, you can enable Chat History, Microphone Typing, Skills, and Internet Search. Microphone Typing downloads its speech model on first use and transcribes on your device. Internet Search sends only the search query to the search provider.
 
-The Mac app is signed locally and has not been notarized. The Windows installer is unsigned. The Windows build and installer contents are verified during packaging; live Windows inference and updating need hardware validation.
+Starting with v0.1.16, Mac installers are signed with a Developer ID Application certificate, notarized by Apple, and include stapled approval tickets. The release process verifies both the app and DMG with Gatekeeper before publication. The Windows installer remains unsigned. The Windows build and installer contents are verified during packaging; live Windows inference and updating need hardware validation.
 
 ## Build from source
 
