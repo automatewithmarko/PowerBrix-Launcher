@@ -57,6 +57,7 @@ const icons={
   copy:icon('M9 8h11v13H9V8ZM5 16H3V3h11v2'),
   api:icon('M8 5 2 12l6 7m8-14 6 7-6 7M14 3l-4 18'),
   info:icon('M12 11v6m0-10v.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'),
+  sdCard:icon('M6 3h9l4 4v14H5V4a1 1 0 0 1 1-1ZM8 3v5h7V3M8 14h8v7H8v-7Z'),
   eye:icon('M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm13 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'),
   restart:icon('M20 7v5h-5m5-5a8 8 0 1 0 1 8'),
   check:icon('M5 12l4 4L19 6'),
@@ -194,15 +195,15 @@ function providerLogo(provider){
 function catalogControls(rows){
   const providers=[...new Set(rows.map(model=>model.vendor).filter(Boolean))].sort();
   const menus=[['provider','Provider',[['all','All providers'],...providers.map(value=>[value,value])]],['parameters','Parameter size',window.PowerBrixCatalog.parameterFilters],['sort','Sort',[['speed','Speed: High to low'],['memory-asc','Memory: Low to high'],['memory-desc','Memory: High to low']]]];
-  return '<div class="catalog-controls">'+menus.map(([key,label,options])=>'<div class="catalog-filter"><span>'+label+'</span>'
-    +button('catalog-menu:'+key,(key==='provider'?providerLogo(catalogFilter[key]):'')+'<span>'+esc(options.find(([value])=>value===catalogFilter[key])?.[1]||label)+'</span>'+icons.chevron,'catalog-filter-toggle','aria-haspopup="listbox" aria-expanded="'+(catalogMenu===key)+'"'+(key==='sort'?' title="Memory sorting uses model weight size in GB, not minimum RAM. SSD streaming models can use less RAM."':key==='parameters'?' title="A plus means at least this many total parameters."':''))
+  return '<div class="catalog-controls">'+menus.map(([key,label,options])=>'<div class="catalog-filter">'
+    +button('catalog-menu:'+key,(key==='provider'?providerLogo(catalogFilter[key]):'')+'<span>'+esc(options.find(([value])=>value===catalogFilter[key])?.[1]||label)+'</span>'+icons.chevron,'catalog-filter-toggle','aria-label="'+label+'" aria-haspopup="listbox" aria-expanded="'+(catalogMenu===key)+'"'+(key==='sort'?' title="Memory sorting uses model weight size in GB, not minimum RAM. SSD streaming models can use less RAM."':key==='parameters'?' title="A plus means at least this many total parameters."':''))
     +'<div class="catalog-filter-options" role="listbox" aria-label="'+label+'"'+(catalogMenu===key?'':' hidden')+'>'+options.map(([value,text])=>button('catalog-filter:'+key,(key==='provider'?providerLogo(value):'')+'<span>'+esc(text)+'</span>','','data-filter-value="'+esc(value)+'" role="option" aria-selected="'+(catalogFilter[key]===value)+'"')).join('')+'</div></div>').join('')+'</div>';
 }
 
 function catalogPanel(rows){
   const browsing=page!=='models';
   const filtered=browsing?window.PowerBrixCatalog.filterModels(rows,catalogFilter):rows;
-  return '<section class="catalog"><header class="catalog-header"><div class="catalog-heading"><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+(browsing?catalogControls(rows):'')+button('folder','Change storage','btn secondary compact',state.pull||busy?'disabled':'')+'</header>'
+  return '<section class="catalog"><header class="catalog-header"><div class="catalog-heading"><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+(browsing?catalogControls(rows):'')+button('folder',icons.sdCard+'<span>Change storage</span>','btn secondary compact storage-button',state.pull||busy?'disabled':'')+'</header>'
     +(filtered.length?modelRows(filtered):browsing?'<div class="catalog-no-results"><h3>No matching models</h3><p>Try another provider or parameter size.</p>'+button('catalog-reset','Reset filters','btn secondary compact')+'</div>':modelRows(filtered))
     +'<footer>Estimates vary with context and hardware. SSD streaming can run models larger than RAM, provided they fit on your drive. Memory sorting uses model weight size, not minimum RAM.</footer></section>';
 }
