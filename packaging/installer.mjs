@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {packager} from '@electron/packager';
 import {packageWhisper} from './whisper.mjs';
 import {macSigningConfiguration, notarizeDiskImage} from './mac-signing.mjs';
+import {ignoreApplicationPath, assertSafeDistributionTree} from './distribution-safety.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const product = 'PowerBrix Launcher';
@@ -37,7 +38,8 @@ try {
     prune: true,
     asar: true,
     icon,
-    ignore: /^\/(build|installers|packaging|test)(\/|$)/,
+    ignore: ignoreApplicationPath,
+    afterPrune: [async ({buildPath}) => {await assertSafeDistributionTree(buildPath);}],
     ...(platform === 'mac' ? {
       appBundleId: 'ai.powerbrix.infer',
       extendInfo: {NSMicrophoneUsageDescription: 'PowerBrix turns your voice into a chat prompt on this device.'},

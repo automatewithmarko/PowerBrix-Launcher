@@ -20,6 +20,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  security:
+    uses: ./.github/workflows/security.yml
   version:
     # Public releases provide the anonymous update feed.
     if: github.event.repository.private == false && github.repository == 'automatewithmarko/PowerBrix-Launcher'
@@ -46,7 +48,7 @@ jobs:
           JS
 
   build:
-    needs: version
+    needs: [version, security]
     strategy:
       matrix:
         include:
