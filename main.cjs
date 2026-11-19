@@ -11,6 +11,7 @@ const {freeSpace,pickModels}=require('./device.cjs');
 const {ensureEngine,profileMachine,LocalEngine}=require('./engine.cjs');
 const {findWhisper,transcribe}=require('./dictation.cjs');
 const {searchWeb,safeUrl}=require('./web-search.cjs');
+const {LocalApi,ApiError}=require('./api.cjs');
 
 const demo = !app.isPackaged && process.env.POWERBRIX_DEMO === '1';
 app.setName(demo ? 'PowerBrix Launcher Demo' : 'PowerBrix Launcher');
@@ -32,7 +33,7 @@ const platformSupported=process.platform==='darwin'&&process.arch==='arm64'||pro
 const fixture=!app.isPackaged&&process.env.POWERBRIX_FIXTURE_MODEL;
 const fixtureModel={id:'dev-fixture',name:'Development fixture',runtime:'fixture',local:true};
 let window,settings,scan,pull,chat,writes=Promise.resolve(),enginePromise;
-let dictation,engineTask,engineTarget,modelMutation=false;
+let dictation,engineTask,engineTarget,modelMutation=false,localApi,apiStartPromise,apiFailure=null;
 const notify=(topic,data)=>{if(window&&!window.isDestroyed())window.webContents.send('pbx:'+topic,data);};
 const attachments=new Map();
 let choosingFiles=false;
@@ -57,7 +58,7 @@ async function startModel(model,signal,progress) {
   try {return await runtime.start(model,model===fixtureModel?fixture:checkpoint(model,model.files[0]),engine,root,progress,signal);}
   finally {engineTarget=null;}
 }
-const pluginIds = ['chat-history', 'microphone-typing', 'skills', 'internet-search'];
+const pluginIds = ['chat-history', 'microphone-typing', 'skills', 'internet-search', 'api'];
 const skillList = () => settings.skills.map(({id,name,enabled}) => ({id,name,enabled}));
 const checkpoint=(model,file)=>path.join(settings.directory,model.id,file.path);
 const installed=async model=>Boolean(settings.installed[model.id]?.[settings.directory]&&
@@ -90,6 +91,29 @@ async function snapshot() {
   if(fixture)models.push(fixtureModel);
   return {...view,skills:skillList(),actual,platformSupported,free,models,scan:scan?.status,pull:pull?.progress,engineStatus:runtime.status,engineModelId:engineTarget||runtime.current?.id||null,engineBusy:Boolean(engineTask||modelMutation)};
 }
+async function ensureLocalApi(){
+  if(!settings.plugins.includes('api'))throw Error('Install the API plugin first.');
+  if(!localApi)localApi=new LocalApi(root,{
+    listModels:async()=>{const models=await Promise.all(catalog.map(async model=>await installed(model)?{id:model.id,name:model.name}:null));return models.filter(Boolean);},
+    complete:async(input,signal,onDelta)=>{
+      if(quitting||chat||scan||engineTask||modelMutation)throw new ApiError(409,'The engine is busy. Wait for the current reply or system task, then retry.');
+      const controller=new AbortController();chat=controller;
+      const stop=()=>controller.abort();signal.addEventListener('abort',stop,{once:true});
+      if(signal.aborted)controller.abort();
+      try{
+        const model=catalog.find(model=>model.id===input.model);
+        if(!model||!(await installed(model)))throw new ApiError(404,'This model is not installed.');
+        await startModel(model,controller.signal,()=>{});
+        let prepared;
+        try{prepared=await runtime.prepareChatContext(input.messages,[],[],controller.signal);}catch(error){if(controller.signal.aborted)throw error;throw new ApiError(400,error.message);}
+        return await runtime.chat(prepared.messages,controller.signal,onDelta,input.options);
+      }finally{signal.removeEventListener('abort',stop);if(chat===controller)chat=null;}
+    },
+  });
+  if(!apiStartPromise)apiStartPromise=localApi.start().then(()=>{apiFailure=null;}).catch(error=>{apiFailure=error.message;apiStartPromise=null;throw error;});
+  await apiStartPromise;return localApi.info();
+}
+
 function action(name,handler) {
   ipcMain.handle('pbx:'+name,(event,...args)=>{
     if(event.sender!==window?.webContents||event.senderFrame!==window.webContents.mainFrame)throw Error('Untrusted window.');
@@ -114,6 +138,14 @@ app.whenReady().then(async()=>{
   if (!Array.isArray(settings.skills)) settings.skills = [];
   await fs.mkdir(settings.directory,{recursive:true,mode:0o700});
   action('state',snapshot);
+  action('apiConfiguration',async()=>{
+    try{return await ensureLocalApi();}catch(error){return {key:localApi?.info().key||'',baseUrl:null,running:false,error:error.message};}
+  });
+  action('regenerateApiKey',async()=>{
+    await ensureLocalApi();
+    const result=await dialog.showMessageBox(window,{type:'question',title:'Regenerate API key',message:'Regenerate your API key?',detail:'The current key will stop working. Update your integrations with the new key.',buttons:['Cancel','Regenerate key'],defaultId:0,cancelId:0,noLink:true});
+    return result.response===1?localApi.regenerate():localApi.info();
+  });
   action('copyText',text=>{
     if(typeof text!=='string'||text.length>1_000_000)throw Error('This message is too large to copy.');
     clipboard.writeText(text);return true;
@@ -130,6 +162,7 @@ app.whenReady().then(async()=>{
       settings.plugins.push(id);
       await save();
     }
+    if(id==='api')await ensureLocalApi();
     return {plugins:[...settings.plugins]};
   });
   action('manageSkill',async (operation,input)=>{
@@ -379,6 +412,7 @@ app.whenReady().then(async()=>{
     contents === window.webContents && permission === 'media' && details.isMainFrame &&
     details.mediaTypes?.length === 1 && details.mediaTypes[0] === 'audio' &&
     settings.plugins.includes('microphone-typing')));
+  if(settings.plugins.includes('api'))void ensureLocalApi().catch(error=>{apiFailure=error.message;});
   window.loadFile(path.join(__dirname,'renderer','index.html'), demo ? {query:{demo:'1'}} : undefined);
   if(app.isPackaged) {
     startUpdatePolling(app.getVersion(),update=>{
@@ -396,7 +430,7 @@ app.on('before-quit',event=>{
   if(quitting)return;
   quitting=true;
   updateAbort.abort();pull?.stop.abort();scan?.stop.abort();chat?.abort();dictation?.abort();engineTask?.stop.abort();
-  Promise.allSettled([runtime.stop(),writes]).finally(()=>{
+  Promise.allSettled([runtime.stop(),localApi?.close(),writes]).finally(()=>{
     shutdownComplete=true;
     app.quit();
   });

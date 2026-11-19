@@ -390,25 +390,27 @@ class LocalEngine {
       }
       if (!usedSources.length) throw Error('Shorten your prompt or turn off a skill to make room for web search results.');
     }
-    let remaining=inputBudget-(await count(content)).length;
+    const system=messages[0]?.role==='system'?messages[0]:null;
+    let remaining=inputBudget-(await count(content)).length-(system?(await count(system.content)).length+24:0);
     if(remaining<0)throw Error('Shorten your message to make room for the attached text.');
     const kept=[{role:'user',content}];
-    for(let index=messages.length-2;index>=0;index--){
+    for(let index=messages.length-2;index>=(system?1:0);index--){
       const message=messages[index];
       remaining-=(await count(message.content)).length+24;
       if(remaining<0)break;
       kept.unshift(message);
     }
     if(kept[0].role==='assistant')kept.shift();
+    if(system)kept.unshift(system);
     shortened ||= kept.length < messages.length;
     return {messages:kept,shortened,sources:usedSources};
   }
 
-  async chat(messages, signal, onDelta) {
+  async chat(messages, signal, onDelta, options={}) {
     const {base,key,model}=this.current;
     const response=await fetch(base+'/v1/chat/completions',{
       method:'POST',signal,headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-      body:JSON.stringify({model,messages,stream:true,stream_options:{include_usage:true},timings_per_token:true,return_progress:true,reasoning_format:'deepseek',max_tokens:this.current.maxTokens || 4096}),
+      body:JSON.stringify({model,messages,stream:true,stream_options:{include_usage:true},timings_per_token:true,return_progress:true,reasoning_format:'deepseek',max_tokens:Math.min(options.max_tokens||this.current.maxTokens||4096,this.current.maxTokens||4096),...(options.temperature!==undefined?{temperature:options.temperature}:{}),...(options.top_p!==undefined?{top_p:options.top_p}:{})}),
     });
     if (!response.ok) {
       const data=await response.json().catch(()=>null);

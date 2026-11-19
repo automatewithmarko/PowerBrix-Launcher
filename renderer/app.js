@@ -12,6 +12,7 @@ let modelActionBusy = false;
 let liveMetrics = null;
 let regeneratingIndex = null;
 let editingIndex = null,editingDraft = '';
+let apiInfo=null,apiModelId=null,apiModelOpen=false,apiLoading=false;
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -51,6 +52,7 @@ const icons={
   plus:icon('M12 5v14M5 12h14'),
   play:icon('M8 5v14l11-7-11-7Z'),
   copy:icon('M9 8h11v13H9V8ZM5 16H3V3h11v2'),
+  api:icon('M8 5 2 12l6 7m8-14 6 7-6 7M14 3l-4 18'),
   restart:icon('M20 7v5h-5m5-5a8 8 0 1 0 1 8'),
   check:icon('M5 12l4 4L19 6'),
 };
@@ -184,6 +186,7 @@ function catalogPanel(rows){
   return '<section class="catalog"><header><div><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+button('folder','Change storage','btn secondary compact',state.pull||busy?'disabled':'')+'</header>'+modelRows(rows)+'<footer>Estimates vary with context and hardware. SSD streaming can run models larger than RAM, provided they fit on your drive.</footer></section>';
 }
 const nav=[['chat','AI Chat'],['plugins','Plugins'],['models','My Models'],['discover','Discover Models']];
+const navItems=()=>hasPlugin('api')?[...nav,['api','API']]:nav;
 const engineLabels={stopped:'Engine Stopped',loading:'Model loading',running:'Engine Running'};
 function updateEngineStatus(status) {
   const indicator=document.querySelector('#engine-status');
@@ -194,7 +197,7 @@ function updateEngineStatus(status) {
 }
 function sidebar() {
   const statusLabel = engineLabels[state.engineStatus];
-  const rows = nav.map(([key, label]) => button(
+  const rows = navItems().map(([key, label]) => button(
     key, icons[key] + '<span>' + label + '</span>', 'navbtn' + (page === key ? ' active' : ''),
     'aria-label="' + label + '" title="' + label + '"' + (page === key ? ' aria-current="page"' : ''),
   )).join('');
@@ -443,6 +446,7 @@ const plugins = [
   {id:'chat-history', name:'Chat History', icon:'history', description:'Save and revisit past conversations with your local AI.'},
   {id:'microphone-typing', name:'Microphone Typing', icon:'mic', description:'Speak into your microphone and turn your words into a prompt.'},
   {id:'skills', name:'Skills', icon:'skills', description:'Give your models reusable instructions for the tasks you do most often.'},
+  {id:'api',name:'API',icon:'api',description:'Create an API for your local models.'},
   {id:'internet-search', name:'Internet Search', icon:'globe', description:'Find current information on the web and bring sources into your chat.'},
 ];
 
@@ -478,6 +482,34 @@ function pluginsPage() {
     </main>`;
 }
 
+async function loadApiConfiguration(){
+  if(apiLoading)return;apiLoading=true;if(page==='api')render();
+  try{apiInfo=await api.apiConfiguration();}catch(error){apiInfo={running:false,error:error.message};}
+  finally{apiLoading=false;if(page==='api')render();}
+}
+function apiExamples(){
+  const models=state.models.filter(model=>model.local&&model.runtime!=='fixture');
+  const model=models.find(model=>model.id===apiModelId)||models[0];
+  const base=apiInfo?.baseUrl||'http://127.0.0.1:38473/v1';
+  const key=apiInfo?.key||'YOUR_API_KEY';
+  const body=JSON.stringify({model:model?.id||'INSTALLED_MODEL_ID',messages:[{role:'user',content:'Explain how local AI can help my business.'}],stream:false},null,2);
+  const url=new URL(base+'/chat/completions');
+  const curl=['curl '+url.href,'  -H "Authorization: Bearer '+key+'"','  -H "Content-Type: application/json"',"  -d '"+body+"'"].join(' '+String.fromCharCode(92)+'\n');
+  return {model,models,curl,http:'POST '+url.pathname+' HTTP/1.1\nHost: '+url.host+'\nAuthorization: Bearer '+key+'\nContent-Type: application/json\nContent-Length: '+new TextEncoder().encode(body).length+'\n\n'+body};
+}
+function apiPage(){
+  const {model,models,curl,http}=apiExamples();
+  const code=(label,kind,text)=>'<section class="api-code"><header><strong>'+label+'</strong>'+button('copy-api:'+kind,icons.copy,'message-action','aria-label="Copy '+label+' request" title="Copy request"')+'</header><pre><code>'+esc(text)+'</code></pre></section>';
+  return '<main class="workspace api-workspace"><div class="api-content"><header class="api-heading"><span class="eyebrow">YOUR MODELS, CONNECTED</span><h1>API Configuration</h1><p>Connect your local models to your apps, scripts and workflows.</p></header>'
+    +'<section class="api-key-section"><div class="api-key-heading"><h2>API Key</h2>'+button('regenerate-api-key',icons.restart+' Regenerate key','btn secondary compact',!apiInfo?.running||apiLoading?'disabled':'')+'</div><div class="api-key-box"><code>'+esc(apiInfo?.key|| (apiLoading?'Preparing your local API…':'API unavailable'))+'</code>'+button('copy-api:key',icons.copy,'message-action','aria-label="Copy API key" title="Copy API key" '+(!apiInfo?.key?'disabled':''))+'</div><p>One key for your local models. Keep it private. Regenerating it replaces the previous key.</p></section>'
+    +'<section class="api-availability">'+icons.chip+'<div><h2>Your computer is your API server.</h2><p>Keep your computer awake and PowerBrix Launcher open. When a request selects a stopped model, Launcher loads it automatically, then generates the response. Loading can take a moment.</p></div></section>'
+    +(!apiInfo?.running?'<div class="api-service-note" role="status">'+esc(apiInfo?.error||(apiLoading?'Starting your local API…':'Your local API is not running.'))+button('retry-api','Retry','textbtn',apiLoading?'disabled':'')+'</div>':'<p class="api-status"><i></i> API running <code>'+esc(apiInfo.baseUrl)+'</code></p>')
+    +'<section class="api-documentation"><h2>Make your first request</h2><p>Choose a downloaded model. Both examples update with its ID and your API key.</p><div class="api-model-picker"><label>Model</label>'+button('toggle-api-model',(model?modelLogo(model)+'<span>'+esc(model.name)+'</span>':'<span>No models downloaded</span>')+icons.chevron,'api-model-toggle','aria-haspopup="listbox" aria-expanded="'+apiModelOpen+'" '+(!models.length?'disabled':''))
+    +(apiModelOpen?'<div class="api-model-options" role="listbox" aria-label="Installed models">'+models.map(item=>button('api-model:'+item.id,modelLogo(item)+'<span>'+esc(item.name)+'</span>','', 'role="option" aria-selected="'+(item.id===model?.id)+'"')).join('')+'</div>':'')+'</div>'
+    +(models.length?code('cURL','curl',curl)+code('HTTP','http',http):'<div class="api-empty"><p>Download a model to create your first request.</p>'+button('discover','Discover Models','btn secondary compact')+'</div>')
+    +'<div class="api-guide"><h3>How requests work</h3><ol><li>Send a POST request to <code>/v1/chat/completions</code> with your key in the Bearer authorization header.</li><li>Use an installed model ID and text messages. An optional first <code>system</code> message can set instructions.</li><li>Read the answer in <code>choices[0].message.content</code>. Thinking, when provided, is separate in <code>reasoning_content</code>.</li></ol><h3>Streaming and generation options</h3><p>Set <code>stream</code> to <code>true</code> for server-sent events ending in <code>[DONE]</code>. Optional settings: <code>max_tokens</code> (1–4096), <code>temperature</code> (0–2), and <code>top_p</code> (above 0, up to 1). Requests currently support text, without attachments or tool calls.</p><h3>List your models</h3><p>Use <code>GET '+esc(apiInfo?.baseUrl||'http://127.0.0.1:38473/v1')+'/models</code> with the same authorization header to list installed model IDs.</p><h3>Running locally</h3><p>This address works on this computer only. Access from another device requires a separate network setup. The API stops if Launcher closes or your computer sleeps. If another reply or system task is active, the API returns <code>409</code>; retry when it finishes. A regenerated key invalidates the old key.</p></div></section></div></main>';
+}
+
 function filterPlugins() {
   const query = pluginQuery.trim().toLowerCase();
   const cards = [...root.querySelectorAll('[data-plugin]')];
@@ -490,6 +522,7 @@ function filterPlugins() {
 function workspace(){
   if(page==='chat')return sidebar()+chatArea();
   if(page==='plugins')return sidebar()+pluginsPage();
+  if(page==='api')return sidebar()+apiPage();
   let local=page==='models';
   return sidebar()+'<main class="workspace listing"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>'+ (local?'My Models':'Discover Models')+'</h2></div><div class="listing-tools">'+(demo?button('preview-wait','Preview Tetris','btn secondary compact'):'')+button('scan',state.scan?'Analyzing…':'Analyze System','btn secondary compact',state.scan||busy||state.pull||!state.platformSupported||state.platform!==state.actual?'disabled':'')+'</div></header><div class="listing-content"><h1>'+(local?'Your <em>Local Models.</em>':'Find Your <em>Next Model.</em>')+'</h1><p>'+(local?'Models you have downloaded on the selected drive.':'Compare storage requirements and estimated performance, then pull a model to use it locally.')+'</p>'+(state.scan?'<p class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></p>':'')+(local?'':machine()+analysisNotice())+catalogPanel(state.models.filter(model=>local?model.local:model.runtime!=='fixture'))+'</div></main>';
 }
@@ -507,6 +540,8 @@ function render(){
   if (existingSidebar) {
     const next = document.createElement('template');
     next.innerHTML = workspace();
+    const nextNav=next.content.querySelector('.sidebar nav').innerHTML;
+    if(existingSidebar.querySelector('nav').innerHTML!==nextNav)existingSidebar.querySelector('nav').innerHTML=nextNav;
     next.content.querySelector('.sidebar').remove();
     for (const child of [...root.children]) if (child !== existingSidebar) child.remove();
     root.append(next.content);
@@ -703,6 +738,7 @@ function applyCommand(search) {
 
 document.addEventListener('pointerdown',event=>{
   if(engineMenuOpen&&!event.target.closest('.sidebar-bottom')){engineMenuOpen=false;syncEngineMenu();}
+  if(apiModelOpen&&!event.target.closest('.api-model-picker')){apiModelOpen=false;if(page==='api')render();}
   if (modelMenuOpen && !event.target.closest('.model-picker')) setModelMenu(false);
   if (skillsMenuOpen && !event.target.closest('.skills-picker, #skill-dialog')) setSkillsMenu(false);
   const menu = document.querySelector('#prompt-commands');
@@ -755,13 +791,25 @@ root.addEventListener('click',async event=>{
   if (action === 'open-chat') {openConversation(value);return;}
   if (action === 'rename-chat' || action === 'delete-chat') {editChat(value,action==='delete-chat');return;}
   if (action === 'cancel-history') {document.querySelector('#history-dialog').close();return;}
-  if(nav.some(([key])=>key===action)||action==='setup'){
+  if(navItems().some(([key])=>key===action)||action==='setup'){
     modelMenuOpen=false;
     skillsMenuOpen=false;
     page=action;
     render();
+    if(page==='api')await loadApiConfiguration();
     if(event.detail===0) root.querySelector(`.sidebar [data-action="${action}"]`)?.focus();
     return;
+  }
+  if(action==='toggle-api-model'){apiModelOpen=!apiModelOpen;render();return;}
+  if(action==='api-model'){apiModelId=value;apiModelOpen=false;render();return;}
+  if(action==='retry-api'){await loadApiConfiguration();return;}
+  if(action==='regenerate-api-key'){
+    el.disabled=true;try{apiInfo=await api.regenerateApiKey();}catch(error){tell(error);}finally{render();}return;
+  }
+  if(action==='copy-api'){
+    const examples=apiExamples();const valueToCopy=value==='key'?apiInfo?.key:value==='curl'?examples.curl:examples.http;
+    if(!valueToCopy)return;
+    try{await api.copyText(valueToCopy);el.innerHTML=icons.check;setTimeout(()=>{if(el.isConnected)el.innerHTML=icons.copy;},1400);}catch(error){tell(error);}return;
   }
   if(action==='edit-message'){
     const index=Number(value);if(chatBusy()||turns[index]?.role!=='user')return;
@@ -854,6 +902,10 @@ root.addEventListener('keydown',event=>{
       if(event.key==='Enter')selected?.click();
       return;
     }
+  }
+  if(event.key==='Escape'&&apiModelOpen){event.preventDefault();apiModelOpen=false;render();return;}
+  if(event.target.closest('.api-model-options')&&['ArrowUp','ArrowDown','Home','End'].includes(event.key)){
+    event.preventDefault();const options=[...root.querySelectorAll('.api-model-options button')];const index=options.indexOf(event.target);const target=event.key==='Home'?0:event.key==='End'?options.length-1:(index+(event.key==='ArrowDown'?1:-1)+options.length)%options.length;options[target]?.focus();return;
   }
   if(event.key==='Escape'&&engineMenuOpen){event.preventDefault();toggleEngineMenu(false);return;}
   if(event.key==='Escape'&&skillsMenuOpen){event.preventDefault();setSkillsMenu(false,true);return;}

@@ -71,3 +71,10 @@ test('raw Qwen think tags split across streamed content are extracted before rea
   assert.equal(result.answer,'Gravity attracts masses.');assert.equal(result.reasoning,'Consider gravity.');
   for(const update of updates){assert.doesNotMatch(update.answer,/<\/?think|<th/i);assert.doesNotMatch(update.reasoning,/<\/?thi/i);}
 });
+test('context preparation preserves the system instruction while trimming old exchanges',async()=>{
+  const engine=new LocalEngine(()=>{});engine.current={contextTokens:4096,maxTokens:2048};
+  engine.tokenizer=async(_route,{content})=>({tokens:Array(content.length).fill(1)});
+  const system={role:'system',content:'Keep the response concise.'};
+  const result=await engine.prepareChatContext([system,{role:'user',content:'old '.repeat(500)},{role:'assistant',content:'reply '.repeat(300)},{role:'user',content:'Question'}],[],[],new AbortController().signal);
+  assert.equal(result.messages[0],system);assert.equal(result.messages.at(-1).content,'Question');assert.equal(result.messages.length,2);
+});
