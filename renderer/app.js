@@ -5,6 +5,7 @@ const demo = new URLSearchParams(location.search).get('demo') === '1';
 if (demo) document.title = 'PowerBrix Launcher Demo';
 let state,page,platformOpen=false,busy=false,thinking=false,answer='',reasoning='',status='',toastTimer;
 let pluginQuery = '';
+let historyQuery = '';
 let renderedPage;
 let streamReasoningOpen = false;
 let engineMenuOpen = false;
@@ -160,7 +161,7 @@ function modelRows(rows){
       ? '<div class="model-actions">'+button('use:'+model.id,'Use in Chat','btn quiet compact')+(page==='models'?button('uninstall:'+model.id,icons.trash+'<span>Uninstall</span>','btn quiet compact uninstall-model',thinking||modelActionBusy||state.scan||state.pull?'disabled':''):'')+'</div>'
       : download ? button('pause','Pause','btn quiet compact')
       : button('pull:'+model.id,window.PowerBrixCatalog.downloadLabel(model),'btn quiet compact',!model.pullable||state.pull||busy||state.scan?'disabled':'');
-    return '<article class="model-row" data-model-id="'+esc(model.id)+'"><span class="tile model-mark" aria-hidden="true">'+modelLogo(model)+'</span><div class="model-body"><h3>'+esc(model.name)+variant+'</h3><p>'+[window.PowerBrixCatalog.sizeLabel(model)?window.PowerBrixCatalog.sizeLabel(model)+' params':null,model.quantization,model.bytes?gb(model.bytes):null,model.runtime==='ssd'?'SSD streaming':model.runtime==='mapped'?'CPU / SSD mapping':model.runtime==='fixture'?'Fixture':'Memory resident'].filter(Boolean).map(esc).join(' <span>·</span> ')+'</p><small data-download-status>'+esc(download?'Downloading · '+percent+'% · File '+download.file+'/'+download.files:model.fit||'Installed')+'</small>'+(download?'<progress max="100" value="'+percent+'" aria-label="Download progress"></progress>':'')+'</div><div class="rate '+rateClass+'" title="'+esc(model.detail||'')+'">'+(model.speed!=null?'<strong>'+speed(model.speed)+' <span>TOK/S</span></strong><small>'+esc(model.source)+'</small>':model.local?'':'<small>Speed unavailable</small>')+'</div>'+action+'</article>';
+    return '<article class="model-row" data-model-id="'+esc(model.id)+'"><span class="tile model-mark" aria-hidden="true">'+modelLogo(model)+'</span><div class="model-body"><h3>'+esc(model.name)+variant+'</h3><p>'+[window.PowerBrixCatalog.sizeLabel(model)?window.PowerBrixCatalog.sizeLabel(model)+' params':null,model.quantization,model.bytes?gb(model.bytes):null,model.runtime==='fixture'?'Fixture':model.executionMode==='hybrid'?'GPU + CPU + SSD':'CPU + SSD'].filter(Boolean).map(esc).join(' <span>·</span> ')+'</p><small data-download-status>'+esc(download?'Downloading · '+percent+'% · File '+download.file+'/'+download.files:model.fit||'Installed')+'</small>'+(download?'<progress max="100" value="'+percent+'" aria-label="Download progress"></progress>':'')+'</div><div class="rate '+rateClass+'" title="'+esc(model.detail||'')+'">'+(model.speed!=null?'<strong>'+speed(model.speed)+' <span>TOK/S</span></strong><small>'+esc(model.source)+'</small>':model.local?'':'<small>Speed unavailable</small>')+'</div>'+action+'</article>';
   }).join('');
 }
 function machine(){
@@ -346,11 +347,24 @@ function skillsPicker() {
   </div>`;
 }
 
+function historyMatches(chat) {
+  const query=historyQuery.trim().toLocaleLowerCase();
+  return !query || [chat.title,...(chat.turns||[]).map(turn=>turn.content||'')].join(' ').toLocaleLowerCase().includes(query);
+}
+function filterChatHistory() {
+  let visible=0;
+  document.querySelectorAll('.history-item[data-chat-id]').forEach(item=>{
+    const match=conversations.find(chat=>chat.id===item.dataset.chatId);
+    item.hidden=!match||!historyMatches(match);if(!item.hidden)visible++;
+  });
+  const empty=document.querySelector('.history-empty');
+  if(empty){empty.hidden=visible>0;empty.textContent=historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.';}
+}
 function chatHistory() {
   const blocked = chatBusy() ? 'disabled' : '';
   const items = conversations.map(chat => {
     const title = esc(chat.title);
-    return `<li class="history-item">
+    return `<li class="history-item" data-chat-id="${esc(chat.id)}"${historyMatches(chat)?'':' hidden'}>
       ${button('open-chat:'+chat.id,title,'history-chat','title="'+title+'" '+(currentChat===chat.id?'aria-current="true" ':'')+blocked)}
       <div class="history-actions">
         ${button('rename-chat:'+chat.id,icons.edit,'history-icon','aria-label="Rename '+title+'" title="Rename chat" '+blocked)}
@@ -359,9 +373,9 @@ function chatHistory() {
     </li>`;
   }).join('');
   return `<aside class="chat-history" aria-label="Chat history">
-    ${button('new',icons.plus+' New chat','btn secondary compact',blocked)}
+    <div class="history-toolbar"><label class="history-search">${icons.search}<input id="history-search" type="search" placeholder="Search chats" aria-label="Search chat history" value="${esc(historyQuery)}"></label>${button('new',icons.plus,'history-new','aria-label="New chat" title="New chat" '+blocked)}</div>
     <h2>Chat history</h2>
-    ${items ? '<ul>'+items+'</ul>' : '<p>Your conversations will appear here.</p>'}
+    <ul>${items}</ul><p class="history-empty"${conversations.some(historyMatches)?' hidden':''}>${historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.'}</p>
   </aside>`;
 }
 
@@ -943,10 +957,11 @@ root.addEventListener('click',async event=>{
   if(action==='scan'){busy=true;state.scan='Preparing system analysis…';render();await perform('scan');state.scan=null;busy=false;render();return;}
   if(action==='pull'){state.pull={id:value};render();const next=await perform('pull',value);state.pull=next?.pull;render();return;}
   if(action==='use'){if(await perform('select',value)){page='chat';render();}return;}
-  if(action==='new'){openConversation(null);return;}
+  if(action==='new'){historyQuery='';openConversation(null);return;}
   if(['pause','stop','folder'].includes(action))await perform(action);
 });
 root.addEventListener('input',event=>{
+  if(event.target.id==='history-search'){historyQuery=event.target.value;filterChatHistory();return;}
   if(event.target.matches('[data-message-editor]')){editingDraft=event.target.value;event.target.closest('form').querySelector('[type=submit]').disabled=!editingDraft.trim();return;}
   if(event.target.id==='prompt'){
     drafts.set(draftKey(),event.target.value);

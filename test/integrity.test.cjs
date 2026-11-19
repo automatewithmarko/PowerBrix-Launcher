@@ -40,12 +40,12 @@ test('capacity restricts pulls without hiding generation estimates',()=>{
   assert.equal(rows.length,catalog.length);
   assert.equal(rows.find(m=>m.id==='qwen35').speed,2);
   assert.equal(rows.find(m=>m.id==='qwen35').pullable,false);
-  assert.equal(rows.find(m=>m.id==='qwenflash').source,'PowerBrix estimate');
+  assert.equal(rows.find(m=>m.id==='qwenflash').source,'Hardware estimate');
   assert.equal(rows.find(m=>m.id==='gemma').pullable,true);
   const resumed=pickModels(catalog,report,16*GiB,new Set(),new Map([['qwen35',10*GiB]]));
   assert.equal(resumed.find(m=>m.id==='qwen35').pullable,true);
   const lowRAM=pickModels(catalog,{...report,machine:{...machine,memory_bytes:8*GiB}},600*GiB);
-  assert.equal(lowRAM.find(m=>m.id==='gptoss').fit,'Needs more memory');
+  assert.equal(lowRAM.find(m=>m.id==='gptoss').pullable,true);
   assert.equal(lowRAM.find(m=>m.id==='muse').pullable,true);
   assert.equal(lowRAM.find(m=>m.id==='gemma3-1b').pullable,true);
 });

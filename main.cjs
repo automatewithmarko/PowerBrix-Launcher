@@ -55,8 +55,22 @@ const runtime=new LocalEngine(status=>{
 });
 async function startModel(model,signal,progress) {
   engineTarget=model.id;
-  try {return await runtime.start(model,model===fixtureModel?fixture:checkpoint(model,model.files[0]),engine,root,progress,signal);}
+  try {
+    const instance=await runtime.start(model,model===fixtureModel?fixture:checkpoint(model,model.files[0]),engine,root,progress,signal,settings.report);
+    if(instance.usedCpuFallback&&settings.report&&!settings.report.cpuFallbacks?.includes(model.id)){
+      settings.report.cpuFallbacks=[...(settings.report.cpuFallbacks||[]),model.id];await save();
+    }
+    return instance;
+  }
   finally {engineTarget=null;}
+}
+async function rememberSpeed(model,result){
+  const metrics=result.metrics,signature=runtime.current?.executionPlan?.signature;
+  if(!signature||!settings.report||!metrics||metrics.generatedTokens<16||!Number.isFinite(metrics.generationMs)||metrics.generationMs<100||result.finishReason==='interrupted')return;
+  const samples=settings.report.actualSpeeds??={};
+  const old=samples[model.id];
+  samples[model.id]={signature,samples:[...(old?.signature===signature?old.samples:[]),{tokens:metrics.generatedTokens,ms:metrics.generationMs}].slice(-5)};
+  await save();
 }
 const pluginIds = ['chat-history', 'microphone-typing', 'skills', 'internet-search', 'api'];
 const skillList = () => settings.skills.map(({id,name,enabled}) => ({id,name,enabled}));
@@ -106,7 +120,8 @@ async function ensureLocalApi(){
         await startModel(model,controller.signal,()=>{});
         let prepared;
         try{prepared=await runtime.prepareChatContext(input.messages,[],[],controller.signal);}catch(error){if(controller.signal.aborted)throw error;throw new ApiError(400,error.message);}
-        return await runtime.chat(prepared.messages,controller.signal,onDelta,input.options);
+        const result=await runtime.chat(prepared.messages,controller.signal,onDelta,input.options);
+        await rememberSpeed(model,result);return result;
       }finally{signal.removeEventListener('abort',stop);if(chat===controller)chat=null;}
     },
   });
@@ -134,6 +149,12 @@ app.whenReady().then(async()=>{
   await fs.mkdir(root,{recursive:true,mode:0o700});
   settings={platform:actual,onboarded:false,directory:path.join(root,'models'),report:null,installed:{},selected:null,plugins:[],skills:[]};
   try {Object.assign(settings,JSON.parse(await fs.readFile(settingsPath,'utf8')));} catch(error) {if(error.code!=='ENOENT')throw error;}
+  // Enrich older saved analyses without forcing another hardware scan.
+  if(settings.report&&!settings.report.hardwareProfile){
+    try {const hardware=JSON.parse(await fs.readFile(path.join(root,'machine.json'),'utf8'));
+      settings.report.hardwareProfile={compute:hardware.compute,gpus:hardware.gpus,memory:hardware.memory};
+    }catch{}
+  }
   settings.plugins = Array.isArray(settings.plugins) ? [...new Set(settings.plugins.filter(id=>typeof id==='string'))] : [];
   if (!Array.isArray(settings.skills)) settings.skills = [];
   await fs.mkdir(settings.directory,{recursive:true,mode:0o700});
@@ -392,8 +413,9 @@ app.whenReady().then(async()=>{
         ? await runtime.prepareChatContext(prompt,documents,enabledSkills,controller.signal,sources)
         : {messages:prompt};
       progress('Generating on this device…');
-      return {...await runtime.chat(prepared.messages,controller.signal,delta=>notify('chat',delta)),
-        shortened:prepared.shortened,sources:prepared.sources};
+      const result=await runtime.chat(prepared.messages,controller.signal,delta=>notify('chat',delta));
+      await rememberSpeed(model,result);
+      return {...result,shortened:prepared.shortened,sources:prepared.sources};
     } catch(error) {
       if(controller.signal.aborted)return {stopped:true};
       throw error;

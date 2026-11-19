@@ -1,0 +1,11 @@
+# Local inference and speed estimates
+
+All 30 catalog entries have tensor-layout metadata extracted from the headers of their pinned GGUF shards. The metadata separates dense tensors, routed experts, input/output embeddings, per-layer lookup tables, quantization formats and layer counts. It does not require downloading model weights to estimate speed.
+
+CPU execution uses memory mapping, with SSD paging when weights exceed available RAM. The Metal build on Apple Silicon and the Vulkan build on Windows can offload dense layers within a reserved GPU memory budget; routed experts can remain on CPU/SSD. Existing optimized SSD model routes are retained. Startup failures on accelerated routes retry the memory-mapped CPU path. A GPU driver/backend and sufficient working memory and storage are still required for the corresponding execution path.
+
+Predictions use measured RAM, SSD and available VRAM bandwidth, single-token CPU quantization probes when present, active experts per token, and a RAM allowance for the operating system/context. Input-only and per-layer embedding tables are lookups, not full per-token weight scans. Unmeasured quantization formats use conservative throughput factors. GPU estimates without GPU measurements use shared RAM bandwidth as a conservative approximation. Page cache behavior, prompt/context length, thermals and competing workloads can substantially change results. Predictions are not measured full-model benchmarks.
+
+Recent completed replies with at least 16 generated tokens and valid decode timings calibrate that model's displayed speed. The app keeps the last five samples and divides total generated tokens by total decode time. Prompt evaluation is excluded. Measurements persist in the app's existing private profile and apply only to the same model revision, hardware and execution plan. A fresh hardware scan invalidates prior measurements. No prompts or answers are stored by this calibration.
+
+Validation includes catalog-wide estimates and launch-argument tests, memory-budget checks, CPU fallback tests, and actual CPU-only and GPU-assisted Gemma 3 1B inference on an Apple Silicon Mac. Large Kimi models and Windows GPU execution have not been benchmarked locally.

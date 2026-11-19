@@ -4,6 +4,7 @@ const {randomBytes} = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const net = require('node:net');
+const {planInference}=require('./inference.cjs');
 const {downloadFile} = require('./downloads.cjs');
 const {readMetrics}=require('./renderer/chat-metrics.js');
 const {parseReasoning}=require('./renderer/reasoning.js');
@@ -73,11 +74,11 @@ async function ensureEngine(root, progress) {
     env:{...process.env,INFERSSD_HOME:path.join(root,'runtime'),INFERSSD_RESOURCES:descriptor}};
 }
 
-// A separate pinned engine supplies current Kimi architectures while retaining the SSD engine for existing models.
+// Current Metal/Vulkan/CPU builds supply memory-mapped execution for the full catalog.
 const mappedRelease = 'b12498';
 const mappedReleases = {
   'darwin-arm64': ['macos-arm64.tar.gz',17282660,'88ba080b2b24bb69012633588c763b7ed20ea60b3f9e7fcbd1a5434eded3e325'],
-  'win32-x64': ['win-cpu-x64.zip',25520902,'eeb67345805510a1a955430d559336a3c535345d9a19467bf89fa0a6a34d4173'],
+  'win32-x64': ['win-vulkan-x64.zip',38603223,'a6abf8babfab8249945c3318a2e29531d6235a87863c9e4227b4ce3f67f0e9b8'],
 };
 const mappedInstalls = new Map();
 async function findMappedServer(directory, depth=0) {
@@ -96,8 +97,8 @@ async function findMappedServer(directory, depth=0) {
 async function ensureMappedEngine(root, progress, signal) {
   const target = process.platform+'-'+process.arch;
   const platform = mappedReleases[target];
-  if (!platform) throw Error('Kimi models require Apple Silicon macOS or Windows x64.');
-  const directory = path.join(root,'engine','kimi-'+mappedRelease+'-'+target);
+  if (!platform) throw Error('Local models require Apple Silicon macOS or Windows x64.');
+  const directory = path.join(root,'engine','local-'+mappedRelease+'-'+target);
   const existing = await findMappedServer(directory).catch(error=>{
     if (error.code === 'ENOENT') return null;
     throw error;
@@ -110,10 +111,10 @@ async function ensureMappedEngine(root, progress, signal) {
     const engineRoot = path.dirname(directory);
     await fs.mkdir(engineRoot,{recursive:true,mode:0o700});
     const archive = path.join(engineRoot,name);
-    progress('Installing the Kimi model engine…');
+    progress('Installing the local model engine…');
     await downloadFile('https://github.com/ggml-org/llama.cpp/releases/download/'+mappedRelease+'/'+name,
       archive,{bytes,sha256},signal);
-    const stage = await fs.mkdtemp(path.join(engineRoot,'kimi-install-'));
+    const stage = await fs.mkdtemp(path.join(engineRoot,'local-install-'));
     try {
       if (process.platform === 'win32') {
         await processOutput('powershell.exe',['-NoProfile','-NonInteractive','-Command',
@@ -121,7 +122,7 @@ async function ensureMappedEngine(root, progress, signal) {
           {env:{...process.env,PBX_ARCHIVE:archive,PBX_STAGING:stage},signal});
       } else await processOutput('/usr/bin/tar',['-xzf',archive,'-C',stage],{signal});
       const server = await findMappedServer(stage);
-      if (!server) throw Error('The downloaded Kimi engine is incomplete.');
+      if (!server) throw Error('The downloaded local model engine is incomplete.');
       signal.throwIfAborted();
       const relative = path.relative(stage,server);
       await fs.rename(stage,directory);
@@ -199,7 +200,7 @@ async function profileMachine(engine, root, modelsDirectory, progress, reprofile
     }
   }
   progress('Your hardware results are ready.');
-  return {...report,analysisWarnings:[...warnings],gpuMeasurementUnavailable:incomplete.some(([name])=>name==='gpus')};
+  return {...report,hardwareProfile:{compute:saved.compute,gpus:saved.gpus,memory:saved.memory},analysisWarnings:[...warnings],gpuMeasurementUnavailable:incomplete.some(([name])=>name==='gpus')};
 }
 
 function localPort() {
@@ -265,22 +266,28 @@ class LocalEngine {
     await Promise.race([closed,delay(1500,null,{ref:false})]);
   }
 
-  async start(model, checkpoint, loadEngine, root, progress, signal) {
+  async start(model, checkpoint, loadEngine, root, progress, signal, report=null, forceCpu=false) {
     if (this.current?.id===model.id && this.current.ready && this.current.child.exitCode===null && this.current.child.signalCode===null) return this.current;
     await this.stop();
     signal.throwIfAborted();
     this.setStatus('loading');
+    const mapped=(model.runtime!=='ssd'||forceCpu||report?.cpuFallbacks?.includes(model.id))&&model.runtime!=='fixture';
+    const plan=planInference(model,report,forceCpu?'cpu':'auto');
     try {
-      const engine=model.runtime==='mapped' ? await ensureMappedEngine(root,progress,signal) : await loadEngine(progress);
+      const engine=mapped ? await ensureMappedEngine(root,progress,signal) : await loadEngine(progress);
       const port=await localPort();
       const key=randomBytes(32).toString('hex');
       const fixture=model.runtime==='fixture';
-      const native=model.runtime==='native' || model.runtime==='gemma' || model.runtime==='mapped' || fixture;
+      const native=mapped||fixture;
       const args=native
         ? ['--host','127.0.0.1','--port',String(port),'-m',checkpoint,'-c',fixture?'512':'8192','-np','1','--no-webui']
         : ['serve','--host','127.0.0.1','--port',String(port),'-m',checkpoint,'--context','8192','--machine',path.join(root,'machine.json')];
       if (fixture) args.push('-ngl','0');
-      if (model.runtime==='mapped') args.push('-ngl','0','--load-mode','mmap','--lazy-mode','on','--no-warmup','--fit','off');
+      if (mapped) {
+        args.push('-ngl',String(plan.gpuLayers),'--load-mode','mmap','--lazy-mode','on','--no-warmup','--fit','off');
+        if(!plan.gpuLayers)args.push('--device','none','--no-op-offload');
+        if(plan.layout?.expertBytes&&plan.gpuLayers)args.push('--cpu-moe');
+      }
       if (!native && !(await fs.stat(path.join(root,'machine.json')).catch(()=>null))) args.splice(-2);
       signal.throwIfAborted();
       const child=spawn(native?engine.server:engine.launcher,args,{
@@ -293,7 +300,7 @@ class LocalEngine {
       });
       child.once('error',error=>{failure=error;});
       const closed=new Promise(resolve=>child.once('close',resolve));
-      const instance={id:model.id,child,closed,key,maxTokens:fixture?128:4096,contextTokens:fixture?512:8192,base:'http://127.0.0.1:'+port};
+      const instance={usedCpuFallback:forceCpu,executionPlan:plan,id:model.id,child,closed,key,maxTokens:fixture?128:4096,contextTokens:fixture?512:8192,base:'http://127.0.0.1:'+port};
       this.current=instance;
       child.once('close',()=>{
         if (this.current!==instance || instance.stopping) return;
@@ -332,6 +339,10 @@ class LocalEngine {
       throw Error('The local engine did not finish loading in five minutes.');
     } catch(error) {
       await this.stop();
+      if(((mapped&&plan.gpuLayers)||model.runtime==='ssd')&&!forceCpu&&!signal.aborted){
+        progress('The accelerated engine could not start. Switching to CPU + SSD…');
+        return this.start(model,checkpoint,loadEngine,root,progress,signal,report,true);
+      }
       throw error;
     }
   }

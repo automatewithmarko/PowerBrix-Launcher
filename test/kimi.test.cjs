@@ -31,7 +31,7 @@ test('CPU SSD mapping checks working RAM and remaining storage instead of requir
   const roomy = pickModels([kimi],report,weights+2*GiB)[0];
   assert.equal(roomy.pullable,true);
   assert.equal(roomy.speed,null);
-  assert.match(roomy.detail,/CPU inference/);
+  assert.match(roomy.detail,/Analyze System/);
   assert.equal(pickModels([kimi],report,weights-GiB)[0].pullable,false);
   assert.equal(pickModels([kimi],{machine:{memory_bytes:4*GiB}},weights+2*GiB)[0].pullable,false);
   assert.equal(pickModels([kimi],report,3*GiB,new Set(),new Map([[kimi.id,weights-2*GiB]]))[0].pullable,true);

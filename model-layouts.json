@@ -1,0 +1,1211 @@
+{
+  "gemma": {
+    "denseBytes": 2276505920,
+    "expertBytes": 0,
+    "embeddingBytes": 550502400,
+    "lookupBytes": 2312110080,
+    "hasOutput": false,
+    "byType": {
+      "0": 2242880,
+      "1": 55050240,
+      "2": 2219212800
+    },
+    "types": {
+      "0": {
+        "denseBytes": 2242880,
+        "expertBytes": 0
+      },
+      "1": {
+        "denseBytes": 55050240,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 0,
+        "expertBytes": 0
+      },
+      "2": {
+        "denseBytes": 2219212800,
+        "expertBytes": 0
+      }
+    },
+    "layers": 42,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 550502400,
+    "source": "https://huggingface.co/api/models/google/gemma-4-E4B-it-qat-q4_0-gguf/revision/4b4a2c1d584be7264f87aac328a1bc739ce81b6c"
+  },
+  "qwen35": {
+    "denseBytes": 2137836032,
+    "expertBytes": 19671285760,
+    "embeddingBytes": 540344320,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "8": 2033254400,
+      "0": 104581632,
+      "13": 7012876288,
+      "12": 11777605632,
+      "14": 880803840
+    },
+    "types": {
+      "8": {
+        "denseBytes": 2033254400,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 104581632,
+        "expertBytes": 0
+      },
+      "13": {
+        "denseBytes": 0,
+        "expertBytes": 7012876288
+      },
+      "12": {
+        "denseBytes": 0,
+        "expertBytes": 11777605632
+      },
+      "14": {
+        "denseBytes": 0,
+        "expertBytes": 880803840
+      }
+    },
+    "layers": 40,
+    "expertCount": 256,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Qwen3.6-35B-A3B-GGUF/revision/a483e9e6cbd595906af30beda3187c2663a1118c"
+  },
+  "qwen27": {
+    "denseBytes": 16091088896,
+    "expertBytes": 0,
+    "embeddingBytes": 715161600,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 4449177600,
+      "0": 104953856,
+      "12": 10498867200,
+      "13": 1038090240
+    },
+    "types": {
+      "14": {
+        "denseBytes": 4449177600,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 104953856,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 10498867200,
+        "expertBytes": 0
+      },
+      "13": {
+        "denseBytes": 1038090240,
+        "expertBytes": 0
+      }
+    },
+    "layers": 64,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Qwen3.6-27B-GGUF/revision/82d411acf4a06cfb8d9b073a5211bf410bfc29bf"
+  },
+  "gptoss": {
+    "denseBytes": 1302341376,
+    "expertBytes": 10178887680,
+    "embeddingBytes": 615329280,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "8": 1292152320,
+      "0": 36731136,
+      "39": 10152345600
+    },
+    "types": {
+      "8": {
+        "denseBytes": 1292152320,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 10189056,
+        "expertBytes": 26542080
+      },
+      "39": {
+        "denseBytes": 0,
+        "expertBytes": 10152345600
+      }
+    },
+    "layers": 24,
+    "expertCount": 32,
+    "expertsUsed": 4,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/ggml-org/gpt-oss-20b-GGUF/revision/41e8a94d15d62070b36cf4553a0250717ecf46b8"
+  },
+  "qwenflash": {
+    "denseBytes": 3101816320,
+    "expertBytes": 65431142400,
+    "embeddingBytes": 337715200,
+    "lookupBytes": 28800138240,
+    "hasOutput": true,
+    "byType": {
+      "14": 676300800,
+      "30": 60293120,
+      "0": 297602560,
+      "23": 44061040640,
+      "20": 22848307200,
+      "8": 459571200,
+      "1": 81920,
+      "13": 129761280
+    },
+    "types": {
+      "14": {
+        "denseBytes": 676300800,
+        "expertBytes": 0
+      },
+      "30": {
+        "denseBytes": 60293120,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 297602560,
+        "expertBytes": 0
+      },
+      "20": {
+        "denseBytes": 199065600,
+        "expertBytes": 22649241600
+      },
+      "23": {
+        "denseBytes": 1279139840,
+        "expertBytes": 42781900800
+      },
+      "8": {
+        "denseBytes": 459571200,
+        "expertBytes": 0
+      },
+      "1": {
+        "denseBytes": 81920,
+        "expertBytes": 0
+      },
+      "13": {
+        "denseBytes": 129761280,
+        "expertBytes": 0
+      }
+    },
+    "layers": 48,
+    "expertCount": 512,
+    "expertsUsed": 10,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/bartowski/Qwen3.8-Flash-Next-GGUF/revision/db3a185731e162be9ffa4d52d20d7509939e60e8"
+  },
+  "deepseek": {
+    "denseBytes": 217846734368,
+    "expertBytes": 288777830400,
+    "embeddingBytes": 1323827200,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "39": 288777830400,
+      "8": 216166225440,
+      "0": 159385600,
+      "30": 1521123328
+    },
+    "types": {
+      "39": {
+        "denseBytes": 0,
+        "expertBytes": 288777830400
+      },
+      "8": {
+        "denseBytes": 216166225440,
+        "expertBytes": 0
+      },
+      "30": {
+        "denseBytes": 1521123328,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 159385600,
+        "expertBytes": 0
+      }
+    },
+    "layers": 40,
+    "expertCount": 384,
+    "expertsUsed": 6,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/mrfakename/DeepSeek-V4.1-Flash-1017-GGUF/revision/1df54e7d1b1e442051ad393ce871870a929f243e"
+  },
+  "muse": {
+    "denseBytes": 21083485184,
+    "expertBytes": 482646949888,
+    "embeddingBytes": 1758625792,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "13": 183072980992,
+      "12": 299573968896,
+      "0": 536474624,
+      "8": 20547010560
+    },
+    "types": {
+      "13": {
+        "denseBytes": 0,
+        "expertBytes": 183072980992
+      },
+      "12": {
+        "denseBytes": 0,
+        "expertBytes": 299573968896
+      },
+      "0": {
+        "denseBytes": 536474624,
+        "expertBytes": 0
+      },
+      "8": {
+        "denseBytes": 20547010560,
+        "expertBytes": 0
+      }
+    },
+    "layers": 62,
+    "expertCount": 256,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Muse-Spark-Open-816B-A42B-GGUF/revision/c00670568b6ce5e56a247f67091247984df2a01e"
+  },
+  "gemma3-1b": {
+    "denseBytes": 478660864,
+    "expertBytes": 0,
+    "embeddingBytes": 320864256,
+    "lookupBytes": 0,
+    "hasOutput": false,
+    "byType": {
+      "0": 537088,
+      "6": 313657344,
+      "12": 75479040,
+      "8": 4073472,
+      "14": 84913920
+    },
+    "types": {
+      "0": {
+        "denseBytes": 537088,
+        "expertBytes": 0
+      },
+      "8": {
+        "denseBytes": 4073472,
+        "expertBytes": 0
+      },
+      "6": {
+        "denseBytes": 313657344,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 75479040,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 84913920,
+        "expertBytes": 0
+      }
+    },
+    "layers": 26,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 320864256,
+    "source": "https://huggingface.co/api/models/ggml-org/gemma-3-1b-it-GGUF/revision/f9c28bcd85737ffc5aef028638d3341d49869c27"
+  },
+  "llama32-3b": {
+    "denseBytes": 1688334592,
+    "expertBytes": 0,
+    "embeddingBytes": 323205120,
+    "lookupBytes": 0,
+    "hasOutput": false,
+    "byType": {
+      "0": 700672,
+      "12": 1362493440,
+      "14": 325140480
+    },
+    "types": {
+      "0": {
+        "denseBytes": 700672,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 325140480,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 1362493440,
+        "expertBytes": 0
+      }
+    },
+    "layers": 28,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 323205120,
+    "source": "https://huggingface.co/api/models/unsloth/Llama-3.2-3B-Instruct-GGUF/revision/e7d0997e49c9cb00d88b4c1a6a16aa894b0bbc31"
+  },
+  "phi4-mini": {
+    "denseBytes": 1979462016,
+    "expertBytes": 0,
+    "embeddingBytes": 504161280,
+    "lookupBytes": 0,
+    "hasOutput": false,
+    "byType": {
+      "0": 799104,
+      "12": 1302331392,
+      "13": 346030080,
+      "14": 330301440
+    },
+    "types": {
+      "0": {
+        "denseBytes": 799104,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 330301440,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 1302331392,
+        "expertBytes": 0
+      },
+      "13": {
+        "denseBytes": 346030080,
+        "expertBytes": 0
+      }
+    },
+    "layers": 32,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 504161280,
+    "source": "https://huggingface.co/api/models/bartowski/microsoft_Phi-4-mini-instruct-GGUF/revision/7ff82c2aaa4dde30121698a973765f39be5288c0"
+  },
+  "mistral7b": {
+    "denseBytes": 4296556544,
+    "expertBytes": 0,
+    "embeddingBytes": 75497472,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "0": 1064960,
+      "14": 935854080,
+      "12": 3359637504
+    },
+    "types": {
+      "12": {
+        "denseBytes": 3359637504,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 1064960,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 935854080,
+        "expertBytes": 0
+      }
+    },
+    "layers": 32,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/bartowski/Mistral-7B-Instruct-v0.3-GGUF/revision/61fd4167fff3ab01ee1cfe0da183fa27a944db48"
+  },
+  "qwen25-coder7b": {
+    "denseBytes": 4370558976,
+    "expertBytes": 0,
+    "embeddingBytes": 306561024,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "0": 1333248,
+      "14": 1247877120,
+      "12": 3121348608
+    },
+    "types": {
+      "12": {
+        "denseBytes": 3121348608,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 1333248,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 1247877120,
+        "expertBytes": 0
+      }
+    },
+    "layers": 28,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/revision/13fb94bfda8c8cf22497dc57b78f391a9acb426a"
+  },
+  "deepseek-r1-7b": {
+    "denseBytes": 4370558976,
+    "expertBytes": 0,
+    "embeddingBytes": 306561024,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 1247877120,
+      "0": 1333248,
+      "12": 3121348608
+    },
+    "types": {
+      "14": {
+        "denseBytes": 1247877120,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 1333248,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 3121348608,
+        "expertBytes": 0
+      }
+    },
+    "layers": 28,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/revision/097680e4eed7a83b3df6b0bb5e5134099cadf1b0"
+  },
+  "granite33-8b": {
+    "denseBytes": 4775952384,
+    "expertBytes": 0,
+    "embeddingBytes": 165174240,
+    "lookupBytes": 0,
+    "hasOutput": false,
+    "byType": {
+      "0": 1327104,
+      "12": 3845652480,
+      "14": 928972800
+    },
+    "types": {
+      "0": {
+        "denseBytes": 1327104,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 928972800,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 3845652480,
+        "expertBytes": 0
+      }
+    },
+    "layers": 40,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 165174240,
+    "source": "https://huggingface.co/api/models/ibm-granite/granite-3.3-8b-instruct-GGUF/revision/e40e9dd739c7be00fa965c16ce167088190ce114"
+  },
+  "qwen3-8b": {
+    "denseBytes": 4671766528,
+    "expertBytes": 0,
+    "embeddingBytes": 350060544,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 1315614720,
+      "0": 1232896,
+      "12": 3354918912
+    },
+    "types": {
+      "14": {
+        "denseBytes": 1315614720,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 1232896,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 3354918912,
+        "expertBytes": 0
+      }
+    },
+    "layers": 36,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/Qwen/Qwen3-8B-GGUF/revision/7c41481f57cb95916b40956ab2f0b139b296d974"
+  },
+  "huihui-qwen3-06b": {
+    "denseBytes": 263127040,
+    "expertBytes": 0,
+    "embeddingBytes": 127626240,
+    "lookupBytes": 0,
+    "hasOutput": false,
+    "byType": {
+      "0": 262144,
+      "12": 214695936,
+      "14": 48168960
+    },
+    "types": {
+      "0": {
+        "denseBytes": 262144,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 48168960,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 214695936,
+        "expertBytes": 0
+      }
+    },
+    "layers": 28,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 127626240,
+    "source": "https://huggingface.co/api/models/mradermacher/Huihui-Qwen3-0.6B-abliterated-v2-GGUF/revision/a81ddae27343c9bfacfcd5e6252eb8b3ed41ed43"
+  },
+  "mlabonne-qwen3-17b": {
+    "denseBytes": 846204928,
+    "expertBytes": 0,
+    "embeddingBytes": 255252480,
+    "lookupBytes": 0,
+    "hasOutput": false,
+    "byType": {
+      "0": 495616,
+      "12": 677117952,
+      "14": 168591360
+    },
+    "types": {
+      "0": {
+        "denseBytes": 495616,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 168591360,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 677117952,
+        "expertBytes": 0
+      }
+    },
+    "layers": 28,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 255252480,
+    "source": "https://huggingface.co/api/models/bartowski/mlabonne_Qwen3-1.7B-abliterated-GGUF/revision/fb7311cea48018c704b343c2ccabaa0cbc13f4f3"
+  },
+  "lexi-llama31-8b": {
+    "denseBytes": 4617396480,
+    "expertBytes": 0,
+    "embeddingBytes": 295501824,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "0": 1065216,
+      "14": 1256693760,
+      "12": 3359637504
+    },
+    "types": {
+      "0": {
+        "denseBytes": 1065216,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 3359637504,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 1256693760,
+        "expertBytes": 0
+      }
+    },
+    "layers": 32,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/bartowski/Llama-3.1-8B-Lexi-Uncensored-GGUF/revision/4bf046e5f0e048ff60cfa1164a2c82432881ecbc"
+  },
+  "dolphin30-llama31-8b": {
+    "denseBytes": 4617403200,
+    "expertBytes": 0,
+    "embeddingBytes": 295506432,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 1256700480,
+      "0": 1065216,
+      "12": 3359637504
+    },
+    "types": {
+      "14": {
+        "denseBytes": 1256700480,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 1065216,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 3359637504,
+        "expertBytes": 0
+      }
+    },
+    "layers": 32,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/bartowski/Dolphin3.0-Llama3.1-8B-GGUF/revision/a6274707ba8c5f12d4521eabbce1b318bb2f27f5"
+  },
+  "huihui-qwen3-14b": {
+    "denseBytes": 8558218240,
+    "expertBytes": 0,
+    "embeddingBytes": 437575680,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 2186419200,
+      "0": 1699840,
+      "12": 6370099200
+    },
+    "types": {
+      "14": {
+        "denseBytes": 2186419200,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 1699840,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 6370099200,
+        "expertBytes": 0
+      }
+    },
+    "layers": 40,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/bartowski/huihui-ai_Qwen3-14B-abliterated-GGUF/revision/623c0f3fc42a4699d4583fb16e022942c003d1b7"
+  },
+  "kimi-k31": {
+    "denseBytes": 23347121024,
+    "expertBytes": 985575456768,
+    "embeddingBytes": 385351680,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "10": 607072768512,
+      "11": 397952163840,
+      "0": 2442254720,
+      "2": 145981440,
+      "30": 346030080,
+      "14": 963379200
+    },
+    "types": {
+      "10": {
+        "denseBytes": 11473211904,
+        "expertBytes": 595599556608
+      },
+      "11": {
+        "denseBytes": 7976263680,
+        "expertBytes": 389975900160
+      },
+      "0": {
+        "denseBytes": 2442254720,
+        "expertBytes": 0
+      },
+      "2": {
+        "denseBytes": 145981440,
+        "expertBytes": 0
+      },
+      "30": {
+        "denseBytes": 346030080,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 963379200,
+        "expertBytes": 0
+      }
+    },
+    "layers": 93,
+    "expertCount": 896,
+    "expertsUsed": 16,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/DevQuasar/moonshotai.Kimi-K3.1-Pro-GGUF/revision/05ecce65bdbf1b84c01e8b33f2e35cd469575373"
+  },
+  "kimi-k3": {
+    "denseBytes": 60957710720,
+    "expertBytes": 799065243648,
+    "embeddingBytes": 1247805440,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "8": 58347577344,
+      "0": 2610133376,
+      "17": 749971439616,
+      "18": 49093804032
+    },
+    "types": {
+      "8": {
+        "denseBytes": 58347577344,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 2610133376,
+        "expertBytes": 0
+      },
+      "17": {
+        "denseBytes": 0,
+        "expertBytes": 749971439616
+      },
+      "18": {
+        "denseBytes": 0,
+        "expertBytes": 49093804032
+      }
+    },
+    "layers": 93,
+    "expertCount": 896,
+    "expertsUsed": 16,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Kimi-K3-GGUF/revision/a0836360ce58dfec088d966a97f2ddc8a606279b"
+  },
+  "kimi-k27-code": {
+    "denseBytes": 8524617728,
+    "expertBytes": 330125279232,
+    "embeddingBytes": 807403520,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "12": 660602880,
+      "0": 664721408,
+      "8": 2050174976,
+      "13": 4248961024,
+      "14": 900157440,
+      "18": 125162225664,
+      "17": 192279478272,
+      "2": 12683575296
+    },
+    "types": {
+      "12": {
+        "denseBytes": 660602880,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 664721408,
+        "expertBytes": 0
+      },
+      "13": {
+        "denseBytes": 4248961024,
+        "expertBytes": 0
+      },
+      "8": {
+        "denseBytes": 2050174976,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 900157440,
+        "expertBytes": 0
+      },
+      "18": {
+        "denseBytes": 0,
+        "expertBytes": 125162225664
+      },
+      "17": {
+        "denseBytes": 0,
+        "expertBytes": 192279478272
+      },
+      "2": {
+        "denseBytes": 0,
+        "expertBytes": 12683575296
+      }
+    },
+    "layers": 61,
+    "expertCount": 384,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Kimi-K2.7-Code-GGUF/revision/46352ca8dc32aa60f9754f5bd3fb778deeb9e430"
+  },
+  "kimi-k26": {
+    "denseBytes": 8524617728,
+    "expertBytes": 331138203648,
+    "embeddingBytes": 807403520,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "12": 660602880,
+      "0": 664721408,
+      "8": 2050174976,
+      "13": 4248961024,
+      "14": 900157440,
+      "18": 123004256256,
+      "17": 192279478272,
+      "2": 15854469120
+    },
+    "types": {
+      "12": {
+        "denseBytes": 660602880,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 664721408,
+        "expertBytes": 0
+      },
+      "13": {
+        "denseBytes": 4248961024,
+        "expertBytes": 0
+      },
+      "8": {
+        "denseBytes": 2050174976,
+        "expertBytes": 0
+      },
+      "14": {
+        "denseBytes": 900157440,
+        "expertBytes": 0
+      },
+      "18": {
+        "denseBytes": 0,
+        "expertBytes": 123004256256
+      },
+      "17": {
+        "denseBytes": 0,
+        "expertBytes": 192279478272
+      },
+      "2": {
+        "denseBytes": 0,
+        "expertBytes": 15854469120
+      }
+    },
+    "layers": 61,
+    "expertCount": 384,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Kimi-K2.6-GGUF/revision/47c7cab1e440dd9fcfc57c469e4737983408a6f2"
+  },
+  "kimi-k25": {
+    "denseBytes": 6801541120,
+    "expertBytes": 367295201280,
+    "embeddingBytes": 660602880,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 1118208000,
+      "0": 664721408,
+      "8": 991768576,
+      "11": 147306987520,
+      "12": 1895989248,
+      "1": 113246208,
+      "10": 221962567680,
+      "13": 43253760
+    },
+    "types": {
+      "14": {
+        "denseBytes": 1118208000,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 664721408,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 1895989248,
+        "expertBytes": 0
+      },
+      "8": {
+        "denseBytes": 991768576,
+        "expertBytes": 0
+      },
+      "11": {
+        "denseBytes": 1974353920,
+        "expertBytes": 145332633600
+      },
+      "1": {
+        "denseBytes": 113246208,
+        "expertBytes": 0
+      },
+      "10": {
+        "denseBytes": 0,
+        "expertBytes": 221962567680
+      },
+      "13": {
+        "denseBytes": 43253760,
+        "expertBytes": 0
+      }
+    },
+    "layers": 61,
+    "expertCount": 384,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Kimi-K2.5-GGUF/revision/386fed8b054275941d6a495a9a7010fbf31b560d"
+  },
+  "kimi-k2-thinking": {
+    "denseBytes": 7373850624,
+    "expertBytes": 378305249280,
+    "embeddingBytes": 660602880,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 1083801600,
+      "0": 664721408,
+      "8": 842477568,
+      "12": 4054745088,
+      "3": 35232153600,
+      "10": 221962567680,
+      "13": 728104960,
+      "11": 121110528000
+    },
+    "types": {
+      "14": {
+        "denseBytes": 1083801600,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 664721408,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 4054745088,
+        "expertBytes": 0
+      },
+      "8": {
+        "denseBytes": 842477568,
+        "expertBytes": 0
+      },
+      "3": {
+        "denseBytes": 0,
+        "expertBytes": 35232153600
+      },
+      "10": {
+        "denseBytes": 0,
+        "expertBytes": 221962567680
+      },
+      "13": {
+        "denseBytes": 728104960,
+        "expertBytes": 0
+      },
+      "11": {
+        "denseBytes": 0,
+        "expertBytes": 121110528000
+      }
+    },
+    "layers": 61,
+    "expertCount": 384,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Kimi-K2-Thinking-GGUF/revision/7e4f5d413a9bb469174b2cc9e47d457d16bc6702"
+  },
+  "kimi-k2-0905": {
+    "denseBytes": 7373850624,
+    "expertBytes": 375530717184,
+    "embeddingBytes": 660602880,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 1083801600,
+      "0": 664721408,
+      "8": 842477568,
+      "12": 38934577152,
+      "10": 221962567680,
+      "11": 118688317440,
+      "13": 728104960
+    },
+    "types": {
+      "14": {
+        "denseBytes": 1083801600,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 664721408,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 4054745088,
+        "expertBytes": 34879832064
+      },
+      "8": {
+        "denseBytes": 842477568,
+        "expertBytes": 0
+      },
+      "10": {
+        "denseBytes": 0,
+        "expertBytes": 221962567680
+      },
+      "11": {
+        "denseBytes": 0,
+        "expertBytes": 118688317440
+      },
+      "13": {
+        "denseBytes": 728104960,
+        "expertBytes": 0
+      }
+    },
+    "layers": 61,
+    "expertCount": 384,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Kimi-K2-Instruct-0905-GGUF/revision/ca516d05c7621c0615db3fc7efa63c9617547363"
+  },
+  "kimi-k2": {
+    "denseBytes": 7160387584,
+    "expertBytes": 374033350656,
+    "embeddingBytes": 660602880,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 1074769920,
+      "0": 664721408,
+      "8": 543686656,
+      "12": 33072242688,
+      "10": 221962567680,
+      "13": 343011328,
+      "11": 123532738560
+    },
+    "types": {
+      "14": {
+        "denseBytes": 1074769920,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 664721408,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 4534198272,
+        "expertBytes": 28538044416
+      },
+      "8": {
+        "denseBytes": 543686656,
+        "expertBytes": 0
+      },
+      "10": {
+        "denseBytes": 0,
+        "expertBytes": 221962567680
+      },
+      "13": {
+        "denseBytes": 343011328,
+        "expertBytes": 0
+      },
+      "11": {
+        "denseBytes": 0,
+        "expertBytes": 123532738560
+      }
+    },
+    "layers": 61,
+    "expertCount": 384,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Kimi-K2-Instruct-GGUF/revision/23bf90d8196ddfcb3328a6f60c99a9bdb5c1dadf"
+  },
+  "kimi-linear": {
+    "denseBytes": 1317884416,
+    "expertBytes": 28523888640,
+    "embeddingBytes": 212336640,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 6932889600,
+      "0": 66162176,
+      "8": 323771392,
+      "13": 175177728,
+      "12": 22329354240,
+      "6": 14417920
+    },
+    "types": {
+      "14": {
+        "denseBytes": 492011520,
+        "expertBytes": 6440878080
+      },
+      "0": {
+        "denseBytes": 66162176,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 246343680,
+        "expertBytes": 22083010560
+      },
+      "8": {
+        "denseBytes": 323771392,
+        "expertBytes": 0
+      },
+      "13": {
+        "denseBytes": 175177728,
+        "expertBytes": 0
+      },
+      "6": {
+        "denseBytes": 14417920,
+        "expertBytes": 0
+      }
+    },
+    "layers": 27,
+    "expertCount": 256,
+    "expertsUsed": 8,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/bartowski/moonshotai_Kimi-Linear-48B-A3B-Instruct-GGUF/revision/228dbe476e5a02091624a19068f4c962caa8a1c5"
+  },
+  "kimi-dev": {
+    "denseBytes": 37588942848,
+    "expertBytes": 0,
+    "embeddingBytes": 700710912,
+    "lookupBytes": 0,
+    "hasOutput": true,
+    "byType": {
+      "14": 1572372480,
+      "0": 8552448,
+      "23": 1487339520,
+      "12": 3019898880,
+      "7": 726663168,
+      "8": 257359872,
+      "18": 144506880,
+      "6": 12489523200,
+      "21": 1040793600,
+      "11": 16841932800
+    },
+    "types": {
+      "14": {
+        "denseBytes": 1572372480,
+        "expertBytes": 0
+      },
+      "0": {
+        "denseBytes": 8552448,
+        "expertBytes": 0
+      },
+      "12": {
+        "denseBytes": 3019898880,
+        "expertBytes": 0
+      },
+      "23": {
+        "denseBytes": 1487339520,
+        "expertBytes": 0
+      },
+      "7": {
+        "denseBytes": 726663168,
+        "expertBytes": 0
+      },
+      "8": {
+        "denseBytes": 257359872,
+        "expertBytes": 0
+      },
+      "18": {
+        "denseBytes": 144506880,
+        "expertBytes": 0
+      },
+      "6": {
+        "denseBytes": 12489523200,
+        "expertBytes": 0
+      },
+      "21": {
+        "denseBytes": 1040793600,
+        "expertBytes": 0
+      },
+      "11": {
+        "denseBytes": 16841932800,
+        "expertBytes": 0
+      }
+    },
+    "layers": 80,
+    "expertCount": null,
+    "expertsUsed": null,
+    "outputEmbeddingBytes": 0,
+    "source": "https://huggingface.co/api/models/unsloth/Kimi-Dev-72B-GGUF/revision/7d0a1f3ffeae22372b9d5959b5d79199bbba71b6"
+  }
+}

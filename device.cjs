@@ -2,6 +2,7 @@ const os = require('node:os');
 const fs = require('node:fs/promises');
 
 const GiB = 2**30;
+const {estimateModel}=require('./inference.cjs');
 
 function pickModels(catalog, report, freeBytes, installed = new Set(), resumed = new Map()) {
   const estimates = new Map((report?.estimates || []).map(row => [row.model,row]));
@@ -10,28 +11,19 @@ function pickModels(catalog, report, freeBytes, installed = new Set(), resumed =
     const bytes = files.reduce((total,file)=>total+file.bytes,0);
     const local = installed.has(model.id);
     const estimate = estimates.get(model.repo);
-    const bandwidth = report?.machine?.memory_read_Bps;
-    const nativeFits = model.runtime === 'ssd' || (model.runtime === 'mapped' ? ram >= (model.minRamGiB || 8)*GiB : ram >= bytes+4*GiB);
-    // Secondary estimates are explicitly separate from the calibrated upstream estimator.
-    // Gemma E4B uses embedding lookups; the model card lists 4.5B effective vs. 8B stored.
-    const workingBytes = model.id==='gemma' ? bytes*(4.5/8) : bytes;
-    const bandwidthRate = !['ssd','mapped'].includes(model.runtime) && bandwidth ? bandwidth / workingBytes * .60 : null;
-    const disk = report?.machine?.models_drive?.read_Bps;
-    // Upstream IQ4_XS catalog: 3.10 GB dense excluding token lookup; 48 layers,
-    // 10 routed experts per layer, 2,678,784 aligned bytes per expert read.
-    const expertRead = 48*10*2678784;
-    const fallback = model.id==='qwenflash' && disk && bandwidth
-      ? .65 / (expertRead/disk + (32239669760-29137853440)/bandwidth) : bandwidthRate;
-    const speed = estimate?.decode_tokens_per_second ?? fallback;
-    const source = estimate?.decode_tokens_per_second != null ? 'SSD profile estimate' : speed != null ? 'PowerBrix estimate' : null;
+    const prediction=estimateModel(model,report);
+    const nativeFits=ram >= Math.max(model.minRamGiB||0,model.runtime==='fixture'?0:4)*GiB;
+    const calibrated=model.runtime==='ssd'&&!report?.cpuFallbacks?.includes(model.id)&&Number.isFinite(estimate?.decode_tokens_per_second)&&estimate.decode_tokens_per_second>0;
+    const observed=report?.actualSpeeds?.[model.id];
+    const valid=observed?.signature===prediction.plan.signature&&observed.samples?.length;
+    const samples=valid?observed.samples.filter(sample=>Number.isFinite(sample.tokens)&&sample.tokens>=16&&Number.isFinite(sample.ms)&&sample.ms>=100):[];
+    const measured=samples.length?samples.reduce((sum,sample)=>sum+sample.tokens,0)*1000/samples.reduce((sum,sample)=>sum+sample.ms,0):null;
+    const speed=measured??(calibrated?estimate.decode_tokens_per_second:prediction.speed);
+    const source=measured?'Measured on this device':calibrated?'SSD profile estimate':prediction.source||null;
     const remaining = bytes-(resumed.get(model.id)||0);
     const diskFits = freeBytes >= remaining+GiB;
-    const detail = source==='PowerBrix estimate'
-      ? model.id==='qwenflash'
-        ? 'Approximate SSD and RAM bandwidth estimate with a cold expert cache; CPU quantization throughput was unavailable.'
-        : 'Approximate memory bandwidth estimate. Context, compute and GPU behavior can change actual speed.'
-      : estimate?.detail || (model.runtime === 'mapped' ? 'CPU inference with SSD memory mapping. Performance depends on RAM, SSD speed, model size and context. Download size is checked against your free storage.' : 'Run Analyze System for a speed estimate.');
-    return {...model,bytes,local,speed,source,detail,range:estimate?.scenario_range_tokens_per_second||null,
+    const detail=measured?'Average decode speed from recent completed replies on this device and execution path. Context length and other workloads affect speed.':calibrated?estimate.detail||'SSD profile estimate. Actual speed varies with context and hardware.':prediction.detail;
+    return {...model,bytes,local,speed,source,detail,range:calibrated?estimate?.scenario_range_tokens_per_second||null:prediction.range||null,executionMode:prediction.plan.mode,
       fit:local ? 'Installed' : !diskFits ? 'Needs more storage' : !nativeFits ? 'Needs more memory' : 'Ready to pull',
       pullable:!local && diskFits && nativeFits,
       resumed:!local && (resumed.get(model.id)||0)>0,
