@@ -173,6 +173,7 @@ app.whenReady().then(async()=>{
       if(input.folderTokens!==undefined||input.retainedFolders!==undefined){const current=await projects.get(input.id);const retained=input.retainedFolders||[];const added=(input.folderTokens||[]).map(token=>projectFolders.get(token));if(!Array.isArray(retained)||retained.some(folder=>!current.sourceFolders.includes(folder))||added.some(folder=>!folder))throw Error('Choose valid source folders.');changes.sourceFolders=[...retained,...added];}
       const project=await projects.update(input.id,changes);(input.folderTokens||[]).forEach(token=>projectFolders.delete(token));return project;
     }
+    if(operation==='moveChat')return projects.moveChat(input.sourceId||null,input.targetId,input.chatId,input.chat);
     if(operation==='saveChat')return projects.saveChat(input.id,input.chat);
     if(operation==='removeFile')return projects.removeFile(input.id,input.fileId);
     if(operation==='deleteChat')return projects.deleteChat(input.id,input.chatId);

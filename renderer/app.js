@@ -8,6 +8,7 @@ let pluginQuery = '';
 let historyQuery = '';
 let activeProject=null,projectList=[],projectSaving=Promise.resolve(),chosenProjectFolders=[],settingsProjectFolders=[],settingsProjectId=null;
 const expandedProjects=new Set();
+let draggedChat=null,chatMoveBusy=false,dragExpandTimer=null;
 let renderedPage;
 let streamReasoningOpen = false;
 let engineMenuOpen = false;
@@ -377,7 +378,7 @@ function chatHistory() {
   const blocked = chatBusy() ? 'disabled' : '';
   const items = conversations.map(chat => {
     const title = esc(chat.title);
-    return `<li class="history-item" data-chat-id="${esc(chat.id)}"${historyMatches(chat)?'':' hidden'}>
+    return `<li class="history-item" draggable="${!chatBusy()&&!chatMoveBusy}" data-chat-id="${esc(chat.id)}"${historyMatches(chat)?'':' hidden'}>
       ${button('open-chat:'+chat.id,title,'history-chat','title="'+title+'" '+(!activeProject&&currentChat===chat.id?'aria-current="true" ':'')+blocked)}
       <div class="history-actions">
         ${button('rename-chat:'+chat.id,icons.edit,'history-icon','aria-label="Rename '+title+'" title="Rename chat" '+blocked)}
@@ -388,8 +389,8 @@ function chatHistory() {
   return `<aside class="chat-history" aria-label="Chat history">
     <div class="history-toolbar"><label class="history-search">${icons.search}<input id="history-search" type="search" placeholder="Search chats" aria-label="Search chat history" value="${esc(historyQuery)}"></label></div>
     ${projectsSection()}
-    <div class="inline-section-heading chats-section-heading"><span>Chats</span>${button('new',icons.plus,'plain-icon','aria-label="New chat" title="New chat" '+blocked)}</div>
-    <ul>${items}</ul><p class="history-empty"${conversations.some(historyMatches)?' hidden':''}>${historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.'}</p>
+    <section class="regular-chats" data-chat-drop=""><div class="inline-section-heading chats-section-heading"><span>Chats</span>${button('new',icons.plus,'plain-icon','aria-label="New chat" title="New chat" '+blocked)}</div>
+    <ul>${items}</ul><p class="history-empty"${conversations.some(historyMatches)?' hidden':''}>${historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.'}</p></section>
   </aside>`;
 }
 
@@ -505,7 +506,7 @@ const plugins = [
 function projectsSection(){
  if(!hasPlugin('projects'))return '';
  return '<section class="inline-projects" aria-label="Projects"><div class="inline-section-heading"><span>Projects</span>'+button('project-create',icons.plus,'plain-icon','aria-label="Create project" title="Create project"')+'</div><div class="project-tree">'+projectList.map(p=>{
- const expanded=expandedProjects.has(p.id);return '<div class="project-tree-item"><div class="project-tree-row'+(activeProject?.id===p.id?' selected':'')+'">'+button('project-toggle:'+p.id,icons.folderOpen+'<span>'+esc(p.name)+'</span>','project-tree-name','aria-expanded="'+expanded+'" aria-controls="project-chats-'+p.id+'"')+'<div class="project-tree-actions">'+button('project-settings:'+p.id,icons.more,'plain-icon','aria-label="Settings for '+esc(p.name)+'" title="Project settings"')+button('project-new-chat:'+p.id,icons.compose,'plain-icon','aria-label="New chat in '+esc(p.name)+'" title="New project chat"')+'</div></div><ul id="project-chats-'+p.id+'" class="project-tree-chats"'+(expanded?'':' hidden')+'>'+(p.chats||[]).map(c=>'<li class="history-item" data-chat-id="'+c.id+'" data-project-id="'+p.id+'">'+button('project-chat:'+c.id,esc(c.title),'history-chat','data-project-id="'+p.id+'" '+(activeProject?.id===p.id&&currentChat===c.id?'aria-current="true"':''))+'<div class="history-actions">'+button('project-rename-chat:'+c.id,icons.edit,'history-icon','data-project-id="'+p.id+'" aria-label="Rename '+esc(c.title)+'"')+button('project-delete-chat:'+c.id,icons.trash,'history-icon','data-project-id="'+p.id+'" aria-label="Delete '+esc(c.title)+'"')+'</div></li>').join('')+(!(p.chats||[]).length?'<li class="project-tree-empty">No chats yet</li>':'')+'</ul></div>';
+ const expanded=expandedProjects.has(p.id);return '<div class="project-tree-item" data-chat-drop="'+p.id+'"><div class="project-tree-row'+(activeProject?.id===p.id?' selected':'')+'">'+button('project-toggle:'+p.id,icons.folderOpen+'<span>'+esc(p.name)+'</span>','project-tree-name','aria-expanded="'+expanded+'" aria-controls="project-chats-'+p.id+'"')+'<div class="project-tree-actions">'+button('project-settings:'+p.id,icons.more,'plain-icon','aria-label="Settings for '+esc(p.name)+'" title="Project settings"')+button('project-new-chat:'+p.id,icons.compose,'plain-icon','aria-label="New chat in '+esc(p.name)+'" title="New project chat"')+'</div></div><ul id="project-chats-'+p.id+'" class="project-tree-chats"'+(expanded?'':' hidden')+'>'+(p.chats||[]).map(c=>'<li class="history-item" draggable="'+(!chatBusy()&&!chatMoveBusy)+'" data-chat-id="'+c.id+'" data-project-id="'+p.id+'">'+button('project-chat:'+c.id,esc(c.title),'history-chat','data-project-id="'+p.id+'" '+(activeProject?.id===p.id&&currentChat===c.id?'aria-current="true"':''))+'<div class="history-actions">'+button('project-rename-chat:'+c.id,icons.edit,'history-icon','data-project-id="'+p.id+'" aria-label="Rename '+esc(c.title)+'"')+button('project-delete-chat:'+c.id,icons.trash,'history-icon','data-project-id="'+p.id+'" aria-label="Delete '+esc(c.title)+'"')+'</div></li>').join('')+(!(p.chats||[]).length?'<li class="project-tree-empty">No chats yet</li>':'')+'</ul></div>';
  }).join('')+'</div></section>';
 }
 function folderPicker(target){return '<div class="project-folder-picker"><div id="project-folders-'+target+'" class="project-folder-list"></div>'+button('project-choose-folder',icons.folderOpen+'<span>Add folders</span>','project-folder-add','data-target="'+target+'"')+'</div>';}
@@ -875,6 +876,67 @@ document.addEventListener('pointerdown',event=>{
   const menu = document.querySelector('#prompt-commands');
   if (menu && !event.target.closest('#prompt-commands, #prompt')) menu.hidden = true;
 });
+function persistRegularChats(list,selectedId){
+ const previous=localStorage.getItem('powerbrix-conversations');const selectedBefore=localStorage.getItem('powerbrix-active-chat');const turnsBefore=localStorage.getItem('powerbrix-chat');
+ try{localStorage.setItem('powerbrix-conversations',JSON.stringify(list));if(selectedId!==undefined){const selected=list.find(c=>c.id===selectedId);localStorage.setItem('powerbrix-active-chat',selected?.id||'');localStorage.setItem('powerbrix-chat',JSON.stringify(selected?.turns||[]));}}
+ catch(error){for(const [key,value] of [['powerbrix-conversations',previous],['powerbrix-active-chat',selectedBefore],['powerbrix-chat',turnsBefore]]){if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value);}throw error;}
+}
+async function moveSidebarChat(chatId,sourceId,targetId){
+ if(chatBusy()||chatMoveBusy||sourceId===targetId)return;
+ chatMoveBusy=true;
+ const wasSelected=currentChat===chatId&&(activeProject?.id||null)===sourceId;
+ try{
+  await projectSaving.catch(()=>{});
+  const source=sourceId?await api.projects('get',{id:sourceId}):null;
+  const chat=(source?source.chats:conversations).find(c=>c.id===chatId);
+  if(!chat)throw Error('This chat is no longer available.');
+  if(targetId){
+    await api.projects('moveChat',{sourceId,targetId,chatId,...(!sourceId?{chat:structuredClone(chat)}:{})});
+    if(!sourceId){
+      const remaining=conversations.filter(c=>c.id!==chatId);const storedSelected=localStorage.getItem('powerbrix-active-chat');
+      try{persistRegularChats(remaining,storedSelected===chatId?remaining[0]?.id||null:undefined);}catch(error){await api.projects('deleteChat',{id:targetId,chatId}).catch(()=>{});throw error;}conversations=remaining;
+    }
+  }else{
+    const before=conversations;const next=[structuredClone(chat),...before.filter(c=>c.id!==chatId)];
+    // Save the ordinary chat before removing its project copy. A storage error leaves the source intact.
+    persistRegularChats(next);
+    try{await api.projects('deleteChat',{id:sourceId,chatId});}
+    catch(error){persistRegularChats(before);throw error;}
+    conversations=next;
+  }
+  projectList=await api.projects('list');
+  if(wasSelected){
+    activeProject=targetId?await api.projects('get',{id:targetId}):null;currentChat=chatId;turns=chat.turns.map(normalizeReasoning);
+    if(!targetId)persistRegularChats(conversations,chatId);
+  }else if(activeProject){activeProject=await api.projects('get',{id:activeProject.id});}
+  if(targetId)expandedProjects.add(targetId);
+  tell(targetId?'Chat moved to '+(projectList.find(p=>p.id===targetId)?.name||'project')+'.':'Chat moved to Chats.');
+ }catch(error){tell(error);}
+ finally{chatMoveBusy=false;render();}
+}
+function clearChatDrag(){clearTimeout(dragExpandTimer);dragExpandTimer=null;draggedChat=null;root.querySelectorAll('.chat-drop-over,.chat-dragging,.is-dragging').forEach(el=>el.classList.remove('chat-drop-over','chat-dragging','is-dragging'));}
+root.addEventListener('dragstart',event=>{
+ const item=event.target.closest('.history-item[data-chat-id]');if(!item||!hasPlugin('projects'))return;
+ if(chatBusy()||chatMoveBusy||event.target.closest('.history-actions')){event.preventDefault();return;}
+ draggedChat={id:item.dataset.chatId,sourceId:item.dataset.projectId||null};
+ event.dataTransfer.setData('application/x-powerbrix-chat',JSON.stringify(draggedChat));event.dataTransfer.effectAllowed='move';
+ item.classList.add('chat-dragging');root.querySelector('.chat-history')?.classList.add('is-dragging');
+});
+root.addEventListener('dragover',event=>{
+ const zone=event.target.closest('[data-chat-drop]');if(!zone||!draggedChat||chatMoveBusy)return;
+ const targetId=zone.dataset.chatDrop||null;if(targetId===draggedChat.sourceId)return;
+ event.preventDefault();event.dataTransfer.dropEffect='move';
+ if(!zone.classList.contains('chat-drop-over')){root.querySelectorAll('.chat-drop-over').forEach(el=>el.classList.remove('chat-drop-over'));zone.classList.add('chat-drop-over');clearTimeout(dragExpandTimer);
+  if(targetId&&!expandedProjects.has(targetId))dragExpandTimer=setTimeout(()=>{expandedProjects.add(targetId);const list=root.querySelector('#project-chats-'+targetId);if(list)list.hidden=false;zone.querySelector('[aria-expanded]')?.setAttribute('aria-expanded','true');},500);
+ }
+});
+root.addEventListener('dragleave',event=>{const zone=event.target.closest('[data-chat-drop]');if(!zone||zone.contains(event.relatedTarget))return;zone.classList.remove('chat-drop-over');clearTimeout(dragExpandTimer);});
+root.addEventListener('drop',async event=>{
+ const zone=event.target.closest('[data-chat-drop]');if(!zone||!draggedChat)return;event.preventDefault();event.stopPropagation();
+ const move=draggedChat,targetId=zone.dataset.chatDrop||null;clearChatDrag();await moveSidebarChat(move.id,move.sourceId,targetId);
+});
+root.addEventListener('dragend',clearChatDrag);
+
 root.addEventListener('focusout',event=>{
   if(modelMenuOpen&&event.target.closest('.model-picker')&&!event.relatedTarget?.closest('.model-picker'))setModelMenu(false);
 });
@@ -882,6 +944,7 @@ root.addEventListener('focusout',event=>{
 root.addEventListener('click',async event=>{
   const el=event.target.closest('[data-action]');if(!el)return;
   let [action,value]=el.dataset.action.split(':');
+  if(chatMoveBusy)return;
   if(action.startsWith('project-')){await handleProjectAction(action,value,el);return;}
   if (action === 'open-source') {await perform('openWebSource',el.dataset.sourceUrl);return;}
   if (action === 'command-clear') {clearCurrentChat();return;}
@@ -1073,6 +1136,7 @@ root.addEventListener('keydown',event=>{
   if(event.target.id==='prompt'&&event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();document.querySelector('#composer')?.requestSubmit();}
 });
 root.addEventListener('submit',async event=>{
+  if(chatMoveBusy){event.preventDefault();return;}
   if(event.target.id==='project-create-form'){event.preventDefault();const form=event.target;const submit=form.querySelector('[type=submit]');submit.disabled=true;try{const project=await api.projects('create',{name:form.elements.name.value,folderTokens:chosenProjectFolders.map(folder=>folder.token)});activeProject=project;projectList=await api.projects('list');expandedProjects.add(project.id);currentChat=null;turns=[];pendingFiles=[];historyQuery='';page='chat';render();}catch(error){tell(error);submit.disabled=false;}return;}
   if(event.target.id==='project-settings-form'){event.preventDefault();const form=event.target;const submit=form.querySelector('[type=submit]');submit.disabled=true;try{await projectSaving.catch(()=>{});const project=await api.projects('update',{id:settingsProjectId,name:form.elements.name.value,instructions:form.elements.instructions.value,retainedFolders:settingsProjectFolders.filter(folder=>!folder.token).map(folder=>folder.path),folderTokens:settingsProjectFolders.filter(folder=>folder.token).map(folder=>folder.token)});if(activeProject?.id===project.id)activeProject=project;projectList=await api.projects('list');render();}catch(error){tell(error);submit.disabled=false;}return;}
   if(event.target.hasAttribute('data-message-edit')){event.preventDefault();await resendEditedMessage(Number(event.target.dataset.messageEdit));return;}

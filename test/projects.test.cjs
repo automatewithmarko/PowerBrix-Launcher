@@ -48,3 +48,18 @@ test('multiple source folders share context, deduplicate overlapping files and p
  const reopened=new ProjectStore(path.join(root,'profile'));const restored=await reopened.get(p.id);assert.equal(restored.chats[0].id,chatId);assert.deepEqual(restored.sourceFolders,[second]);assert.equal(restored.instructions,'Remember these requirements.');assert.equal(restored.sourceFolder,second);assert.ok(await fs.stat(path.join(second,'.powerbrix','projects',p.id+'.json')));await assert.rejects(fs.stat(path.join(first,'.powerbrix','projects',p.id+'.json')),{code:'ENOENT'});assert.match(await fs.readFile(path.join(nested,'one.md'),'utf8'),/ALPHA-123/);
  await assert.rejects(store.update(p.id,{sourceFolders:[]}),/at least one/);
 });
+
+test('chat moves preserve the complete transcript and remove only the source conversation',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'pbx-chat-move-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const store=new ProjectStore(root);const a=await store.create('A'),b=await store.create('B');
+ const chat={id:randomUUID(),title:'Important work',turns:[{role:'user',content:'A question',attachments:[{id:'local-file',name:'brief.md'}]},{role:'assistant',content:'An answer',reasoning:'Reasoning text',reasoningOpen:true,metrics:{generatedTokens:42},modelId:'gemma3-1b'}]};const untouched={id:randomUUID(),title:'Keep this',turns:[]};
+ await store.saveChat(a.id,chat);const savedTurns=(await store.get(a.id)).chats[0].turns;await store.saveChat(a.id,untouched);await store.moveChat(a.id,b.id,chat.id);
+ assert.deepEqual((await store.get(a.id)).chats.map(c=>c.id),[untouched.id]);assert.deepEqual((await store.get(b.id)).chats[0].turns,savedTurns);
+ const reopened=new ProjectStore(root);assert.deepEqual((await reopened.get(b.id)).chats[0].turns,savedTurns);
+ const external={...chat,id:randomUUID()};await store.moveChat(null,b.id,external.id,external);assert.equal((await store.get(b.id)).chats.length,2);
+ const conflict={...external,title:'Different conversation'};await assert.rejects(store.moveChat(null,b.id,conflict.id,conflict),/different chat/);
+});
+test('a source write failure rolls a project move back without losing either chat',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'pbx-chat-move-failure-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const store=new ProjectStore(root);const a=await store.create('A'),b=await store.create('B');const chat={id:randomUUID(),title:'Safe transcript',turns:[{role:'assistant',content:'Keep this answer'}]};await store.saveChat(a.id,chat);
+ const write=store.write.bind(store);t.mock.method(store,'write',p=>p.id===a.id?Promise.reject(Error('Disk is read-only')):write(p));
+ await assert.rejects(store.moveChat(a.id,b.id,chat.id),/read-only/);assert.equal((await store.get(a.id)).chats[0].id,chat.id);assert.equal((await store.get(b.id)).chats.length,0);
+});

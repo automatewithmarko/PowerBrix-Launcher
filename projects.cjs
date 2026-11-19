@@ -19,6 +19,24 @@ class ProjectStore{
  addFiles(id,filenames){return this.mutate(async()=>{const p=await this.read(id);if(p.files.length+filenames.length>20)throw Error('A project can hold up to 20 shared files.');const docs=[];for(const filename of filenames)docs.push({filename,document:await readAttachment(filename),id:randomUUID()});const dir=path.join(this.directory(id),'files');await fs.mkdir(dir,{recursive:true,mode:0o700});const copied=[];try{for(const {filename,document,id:fileId} of docs){const target=path.join(dir,fileId);await fs.copyFile(filename,target);await fs.chmod(target,0o600);copied.push(target);p.files.push({id:fileId,...document});}return await this.write(p);}catch(error){await Promise.allSettled(copied.map(file=>fs.rm(file,{force:true})));throw error;}});}
  removeFile(id,fileId){return this.mutate(async()=>{if(!valid(fileId))throw Error('Invalid file.');const p=await this.read(id);p.files=p.files.filter(f=>f.id!==fileId);const next=await this.write(p);await fs.rm(path.join(this.directory(id),'files',fileId),{force:true});return next;});}
  saveChat(id,chat){return this.mutate(async()=>{const p=await this.read(id);if(!valid(chat?.id)||!Array.isArray(chat.turns)||chat.turns.length>100)throw Error('Invalid project chat.');if(!p.chats.some(c=>c.id===chat.id)&&p.chats.length>=200)throw Error('A project can hold up to 200 chats.');const turns=chat.turns.map(turn=>{if(!['user','assistant'].includes(turn.role)||typeof turn.content!=='string'||turn.content.length>64000)throw Error('Invalid chat message.');return {...turn,content:turn.content,reasoning:text(turn.reasoning,64000)};});const next={id:chat.id,title:text(chat.title,80)||'New chat',turns,updatedAt:Date.now()};p.chats=[next,...p.chats.filter(c=>c.id!==chat.id)];await this.write(p);return {saved:true};});}
+ moveChat(sourceId,targetId,chatId,externalChat=null){return this.mutate(async()=>{
+  if(sourceId===targetId)return {moved:false};
+  const target=await this.read(targetId);const source=sourceId?await this.read(sourceId):null;
+  const chat=source?source.chats.find(c=>c.id===chatId):externalChat;
+  if(!chat||chat.id!==chatId||!valid(chat.id)||!Array.isArray(chat.turns)||chat.turns.length>100)throw Error('This chat is unavailable.');
+  for(const turn of chat.turns)if(!['user','assistant'].includes(turn.role)||typeof turn.content!=='string'||turn.content.length>64000)throw Error('Invalid chat message.');
+  const existing=target.chats.find(c=>c.id===chatId);
+  if(existing&&(existing.title!==chat.title||JSON.stringify(existing.turns)!==JSON.stringify(chat.turns)))throw Error('A different chat with this ID already exists in that project.');
+  if(!existing&&target.chats.length>=200)throw Error('A project can hold up to 200 chats.');
+  const before=structuredClone(target);const moved={...chat,title:text(chat.title,80)||'Untitled chat',updatedAt:Date.now()};
+  if(!existing){target.chats=[moved,...target.chats];await this.write(target);}
+  if(source){source.chats=source.chats.filter(c=>c.id!==chatId);try{await this.write(source);}catch(error){
+    // The destination is saved first. Never remove its copy unless the source is intact.
+    const intact=await this.read(sourceId).then(p=>p.chats.some(c=>c.id===chatId),()=>false);
+    if(intact&&!existing){await this.write(before);throw error;}if(intact)throw error;
+  }}
+  return {moved:true,chat:moved};
+ });}
  deleteChat(id,chatId){return this.mutate(async()=>{const p=await this.read(id);p.chats=p.chats.filter(c=>c.id!==chatId);return this.write(p);});}
  async folderDocuments(folder,signal){
  const files=[];const skipped=new Set(['.git','.powerbrix','node_modules','.venv','venv','dist','build']);let visited=0;
