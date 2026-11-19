@@ -19,7 +19,8 @@ test('chat completions and streaming keep reasoning separate and include real us
 });
 test('one key persists across restart and regeneration revokes the old key',async t=>{
  const {api,root}=await service(t);const old=api.info().key;
- assert.equal((await fs.stat(path.join(root,'local-api.json'))).mode&0o777,0o600);
+ // Windows reports synthetic POSIX mode bits; its profile ACL controls file access.
+ if(process.platform!=='win32')assert.equal((await fs.stat(path.join(root,'local-api.json'))).mode&0o777,0o600);
  await api.close();await api.start();assert.equal(api.info().key,old);
  await api.regenerate();assert.notEqual(api.info().key,old);assert.equal((await request(api,prompt,old)).status,401);assert.equal((await request(api)).status,200);
 });
