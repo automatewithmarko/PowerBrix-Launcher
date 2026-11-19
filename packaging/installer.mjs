@@ -1,5 +1,5 @@
 import {execFileSync} from 'node:child_process';
-import {copyFile, mkdir, mkdtemp, rename, rm} from 'node:fs/promises';
+import {copyFile, mkdir, mkdtemp, readFile, rename, rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -7,15 +7,21 @@ import {packager} from '@electron/packager';
 import {packageWhisper} from './whisper.mjs';
 import {macSigningConfiguration, notarizeDiskImage} from './mac-signing.mjs';
 import {ignoreApplicationPath, assertSafeDistributionTree} from './distribution-safety.mjs';
+import {packageStore,storeManifest,storeIdentity} from './store.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const product = 'PowerBrix Launcher';
-const platform = process.argv[2];
+const target = process.argv[2];
+const platform = target === 'store' ? 'win' : target;
 const output = path.join(root, 'build');
 const icon = path.join(root, 'assets', platform === 'mac' ? 'icon.icns' : 'icon.ico');
 const macSigning = platform === 'mac' ? macSigningConfiguration() : null;
 
 if (!['mac', 'win'].includes(platform)) throw new Error('Choose mac or win.');
+if (target === 'store') {
+  if(process.platform !== 'win32')throw Error('Store packaging requires Windows.');
+  storeManifest(storeIdentity(),JSON.parse(await readFile(path.join(root,'package.json'),'utf8')).version);
+}
 if (platform === 'mac' && process.platform !== 'darwin') {
   throw new Error('A macOS host is required to make a DMG.');
 }
@@ -74,6 +80,8 @@ try {
     if (macSigning) notarizeDiskImage(diskImage, macSigning, (executable,args) =>
       execFileSync(executable,args,{encoding:'utf8',stdio:['ignore','pipe','inherit']}));
     await copyFile(diskImage, path.join(output, dmgName));
+  } else if (target === 'store') {
+    await packageStore(appDir,stage,output,root);
   } else {
     const option = process.platform === 'win32' ? '/' : '-';
     const installerName = 'PowerBrix-Launcher-Windows-x64-Setup.exe';

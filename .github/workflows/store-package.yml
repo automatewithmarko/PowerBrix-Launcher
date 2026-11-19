@@ -1,0 +1,42 @@
+name: Microsoft Store package
+on:
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: Exact Identity Name from Partner Center Product identity
+        required: true
+        type: string
+      publisher:
+        description: Exact Identity Publisher from Partner Center (CN=...)
+        required: true
+        type: string
+      publisher_display_name:
+        description: Exact PublisherDisplayName from Partner Center
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  security:
+    uses: ./.github/workflows/security.yml
+  package:
+    needs: security
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - name: Build unsigned package for Microsoft Store certification
+        env:
+          POWERBRIX_STORE_NAME: ${{ inputs.package_name }}
+          POWERBRIX_STORE_PUBLISHER: ${{ inputs.publisher }}
+          POWERBRIX_STORE_PUBLISHER_DISPLAY_NAME: ${{ inputs.publisher_display_name }}
+        run: npm run package:store
+      - uses: actions/upload-artifact@v4
+        with:
+          name: powerbrix-store-submission
+          path: build/PowerBrix-Launcher-Windows-x64-Store.msix
+          if-no-files-found: error

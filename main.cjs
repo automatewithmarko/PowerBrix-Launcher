@@ -252,6 +252,7 @@ app.whenReady().then(async()=>{
     sendUpdate();
   });
   action('installUpdate',async()=>{
+    if(process.windowsStore)throw Error('Microsoft Store manages updates for this installation.');
     if(!availableUpdate||updateProgress||!app.isPackaged)return;
     if(scan||pull||chat||dictation||choosingFiles||engineTask||modelMutation)throw Error('Finish the current download, scan, or reply before updating.');
     updateFailure=null;
@@ -472,7 +473,7 @@ app.whenReady().then(async()=>{
     settings.plugins.includes('microphone-typing')));
   if(settings.plugins.includes('api'))void ensureLocalApi().catch(error=>{apiFailure=error.message;});
   window.loadFile(path.join(__dirname,'renderer','index.html'), demo ? {query:{demo:'1'}} : undefined);
-  if(app.isPackaged) {
+  if(app.isPackaged && !process.windowsStore) {
     startUpdatePolling(app.getVersion(),update=>{
       if (updateProgress) return false;
       availableUpdate=update;

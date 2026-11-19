@@ -8,7 +8,8 @@
     "start": "electron .",
     "test": "node --test",
     "package:mac": "node packaging/installer.mjs mac",
-    "package:win": "node packaging/installer.mjs win"
+    "package:win": "node packaging/installer.mjs win",
+    "package:store": "node packaging/installer.mjs store"
   },
   "devDependencies": {
     "@electron/packager": "^20.3.0",
