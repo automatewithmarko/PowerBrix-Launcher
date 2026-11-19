@@ -370,7 +370,7 @@ class LocalEngine {
     let content = instructions + user.content;
     const available=contentBudget-(sources.length?620:0)-(await count(content)).length;
     if (skills.length && available < (documents.length ? 350 : 0)) {
-      throw Error('The enabled skills and prompt exceed the context budget. Turn off a skill or shorten your prompt.');
+      throw Error('Your instructions and prompt exceed this model’s context budget. Shorten the project instructions or prompt, or disable a skill.');
     }
     let shortened=false;
     if (documents.length) {

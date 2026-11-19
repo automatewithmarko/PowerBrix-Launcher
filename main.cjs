@@ -11,6 +11,7 @@ const {freeSpace,pickModels}=require('./device.cjs');
 const {ensureEngine,profileMachine,LocalEngine}=require('./engine.cjs');
 const {findWhisper,transcribe}=require('./dictation.cjs');
 const {searchWeb,safeUrl}=require('./web-search.cjs');
+const {ProjectStore}=require('./projects.cjs');
 const {LocalApi,ApiError}=require('./api.cjs');
 
 const demo = !app.isPackaged && process.env.POWERBRIX_DEMO === '1';
@@ -27,6 +28,7 @@ if (process.env.POWERBRIX_DATA_DIR && !app.isPackaged) {
 if(!app.requestSingleInstanceLock())app.exit(0);
 app.on('second-instance',()=>{if(window&&!window.isDestroyed()){if(window.isMinimized())window.restore();window.focus();}});
 const root=app.getPath('userData');
+const projects=new ProjectStore(root);
 const settingsPath=path.join(root,'settings.json');
 const actual=process.platform==='darwin'?'mac':process.platform==='win32'?'windows':'linux';
 const platformSupported=process.platform==='darwin'&&process.arch==='arm64'||process.platform==='win32'&&process.arch==='x64';
@@ -72,7 +74,7 @@ async function rememberSpeed(model,result){
   samples[model.id]={signature,samples:[...(old?.signature===signature?old.samples:[]),{tokens:metrics.generatedTokens,ms:metrics.generationMs}].slice(-5)};
   await save();
 }
-const pluginIds = ['chat-history', 'microphone-typing', 'skills', 'internet-search', 'api'];
+const pluginIds = ['chat-history', 'microphone-typing', 'skills', 'internet-search', 'api', 'projects'];
 const skillList = () => settings.skills.map(({id,name,enabled}) => ({id,name,enabled}));
 const checkpoint=(model,file)=>path.join(settings.directory,model.id,file.path);
 const installed=async model=>Boolean(settings.installed[model.id]?.[settings.directory]&&
@@ -159,6 +161,25 @@ app.whenReady().then(async()=>{
   if (!Array.isArray(settings.skills)) settings.skills = [];
   await fs.mkdir(settings.directory,{recursive:true,mode:0o700});
   action('state',snapshot);
+  action('projects',async(operation,input={})=>{
+    if(!settings.plugins.includes('projects'))throw Error('Install Projects first.');
+    if(operation==='list')return projects.list();
+    if(operation==='get')return projects.get(input.id);
+    if(operation==='create')return projects.create(input.name);
+    if(operation==='update')return projects.update(input.id,input);
+    if(operation==='saveChat')return projects.saveChat(input.id,input.chat);
+    if(operation==='removeFile')return projects.removeFile(input.id,input.fileId);
+    if(operation==='deleteChat')return projects.deleteChat(input.id,input.chatId);
+    if(operation==='delete'){
+      const result=await dialog.showMessageBox(window,{type:'question',message:'Delete this project?',detail:'Its local chats, instructions and saved file copies will be permanently removed. Original files are kept.',buttons:['Cancel','Delete project'],defaultId:0,cancelId:0});
+      if(result.response===1){await projects.delete(input.id);return {deleted:true};}return {deleted:false};
+    }
+    if(operation==='addFiles'){
+      const selection=await dialog.showOpenDialog(window,{title:'Add shared project files',properties:['openFile','multiSelections'],filters:[{name:'Documents and text',extensions}]});
+      return selection.canceled?projects.get(input.id):projects.addFiles(input.id,selection.filePaths);
+    }
+    throw Error('Unknown project action.');
+  });
   action('apiConfiguration',async()=>{
     try{return await ensureLocalApi();}catch(error){return {key:localApi?.info().key||'',baseUrl:null,running:false,error:error.message};}
   });
@@ -383,7 +404,7 @@ app.whenReady().then(async()=>{
       choosingFiles=false;
     }
   });
-  action('chat',async(id,messages,useWebSearch=false)=>{
+  action('chat',async(id,messages,useWebSearch=false,projectId=null)=>{
     if(chat||scan||engineTask||modelMutation)throw Error('Wait for the current scan or reply to finish first.');
     const model=fixture&&id===fixtureModel.id?fixtureModel:catalog.find(item=>item.id===id);
     if(!model||model!==fixtureModel&&!(await installed(model)))throw Error('Pull a model before starting a chat.');
@@ -397,6 +418,12 @@ app.whenReady().then(async()=>{
       : [];
     const prompt=history.map(({role,content})=>({role,content}));
     const enabledSkills = settings.plugins.includes('skills') ? settings.skills.filter(skill => skill.enabled) : [];
+    if(projectId){
+      if(!settings.plugins.includes('projects'))throw Error('Install Projects first.');
+      const shared=await projects.context(projectId,prompt.at(-1).content);
+      enabledSkills.push({name:'Project: '+shared.name,content:shared.instructions+'\nShared project files: '+shared.files.join(', ')});
+      documents.push(...shared.documents);
+    }
     if(quitting)throw Error('PowerBrix Launcher is closing.');
     if(chat||scan||engineTask||modelMutation)throw Error('A scan or reply is already running.');
     const controller=new AbortController();
@@ -452,7 +479,7 @@ app.on('before-quit',event=>{
   if(quitting)return;
   quitting=true;
   updateAbort.abort();pull?.stop.abort();scan?.stop.abort();chat?.abort();dictation?.abort();engineTask?.stop.abort();
-  Promise.allSettled([runtime.stop(),localApi?.close(),writes]).finally(()=>{
+  Promise.allSettled([runtime.stop(),localApi?.close(),writes,projects.writes]).finally(()=>{
     shutdownComplete=true;
     app.quit();
   });
