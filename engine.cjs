@@ -286,7 +286,7 @@ class LocalEngine {
       if (mapped) {
         args.push('-ngl',String(plan.gpuLayers),'--load-mode','mmap','--lazy-mode','on','--no-warmup','--fit','off');
         if(!plan.gpuLayers)args.push('--device','none','--no-op-offload');
-        if(plan.layout?.expertBytes&&plan.gpuLayers)args.push('--cpu-moe');
+        if(plan.layout?.expertBytes&&plan.gpuLayers&&!plan.gpuExperts)args.push('--cpu-moe');
       }
       if (!native && !(await fs.stat(path.join(root,'machine.json')).catch(()=>null))) args.splice(-2);
       signal.throwIfAborted();

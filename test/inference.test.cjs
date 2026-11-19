@@ -21,6 +21,10 @@ test('CPU, dedicated GPU and unified GPU plans do not allocate more than their b
   assert.equal(planInference(model,report,'cpu').gpuLayers,0);
  }
  assert.ok(planInference(catalog.find(m=>m.id==='kimi-k25'),reports[1]).gpuLayers>0);
+ const largeGpu={...cpu,hardwareProfile:{gpus:[{vram_total_bytes:80*GiB,read_Bps:1e12}]}};
+ const localMoe=catalog.find(m=>m.id==='gptoss');
+ assert.equal(planInference(localMoe,largeGpu).gpuExperts,true);
+ assert.equal(planInference(localMoe,largeGpu).mode,'gpu');
 });
 test('disk bandwidth, RAM cache and CPU quantization throughput affect estimates in the correct direction',()=>{
  const model=catalog.find(m=>m.id==='kimi-k25');const base=estimateModel(model,cpu).speed;

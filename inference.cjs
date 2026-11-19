@@ -17,9 +17,10 @@ function planInference(model,report,mode='auto'){
  // Keep routed experts on the CPU where mmap permits SSD-backed paging. Dense layers
  // can still run on Metal/Vulkan. Explicit allocation keeps runtime and estimates aligned.
  const dense=(layout?.denseBytes||0)+(layout?.outputEmbeddingBytes||0);
+ const gpuExperts=Boolean(gpuBudget>=dense+(layout?.expertBytes||0)&&gpuBudget>0);
  const gpuLayers=layers?Math.min(layers,Math.floor(gpuBudget/Math.max(1,dense/layers))):0;
  const gpuFraction=layers?gpuLayers/layers:0;
- return {mode:gpuLayers?'hybrid':'cpu',gpuLayers,gpuFraction,gpuBytes:dense*gpuFraction,
+ return {mode:gpuLayers?(gpuExperts?'gpu':'hybrid'):'cpu',gpuExperts,gpuLayers,gpuFraction,gpuBytes:dense*gpuFraction+(gpuExperts?layout.expertBytes:0),
   unified:apple,gpuBandwidth,ram,layout,signature:['layout-v2-b12498',machine.cpu,machine.logical_cpus,JSON.stringify(machine.gpus||[]),vram,gpuBandwidth,model.runtime,model.parameterSource||model.revision,mode,gpuLayers,ram,machine.memory_read_Bps,machine.models_drive?.read_Bps].join(':')};
 }
 function estimateModel(model,report,mode='auto'){
@@ -28,11 +29,12 @@ function estimateModel(model,report,mode='auto'){
  const memory=machine.memory_read_Bps,disk=machine.models_drive?.read_Bps;
  const dense=l.denseBytes+(l.outputEmbeddingBytes||0); // tied output tables are scanned; input-only tables are lookups
  const routed=l.expertBytes*(l.expertCount?l.expertsUsed/l.expertCount:0);
+ const routedCpu=plan.gpuExperts?0:routed;
  const denseCpu=dense*(1-plan.gpuFraction);
  const available=Math.max(0,plan.ram-6*GiB-(plan.unified?plan.gpuBytes:0));
  const residentDense=Math.min(denseCpu,available);
  const expertCache=Math.min(l.expertBytes,Math.max(0,available-residentDense));
- const misses=denseCpu-residentDense+routed*(1-(l.expertBytes?expertCache/l.expertBytes:0));
+ const misses=denseCpu-residentDense+routedCpu*(1-(l.expertBytes?expertCache/l.expertBytes:0));
  if(!positive(memory)||misses>0&&!positive(disk))return {speed:null,plan,detail:'Run Analyze System to measure RAM and model-drive speed.'};
  const cpuProbes=report?.hardwareProfile?.compute?.cpu||[];
  const rateFor=type=>{
@@ -41,12 +43,12 @@ function estimateModel(model,report,mode='auto'){
   return rates.length?Math.min(memory,Math.max(...rates)):memory*(format?.startsWith('IQ') ? .35 : .6);
  };
  let computeSeconds=0;
- for(const [type,bucket] of Object.entries(l.types))computeSeconds+=(bucket.denseBytes*(1-plan.gpuFraction)+bucket.expertBytes*(l.expertCount?l.expertsUsed/l.expertCount:0))/rateFor(type);
+ for(const [type,bucket] of Object.entries(l.types))computeSeconds+=(bucket.denseBytes*(1-plan.gpuFraction)+(plan.gpuExperts?0:bucket.expertBytes*(l.expertCount?l.expertsUsed/l.expertCount:0)))/rateFor(type);
  computeSeconds+=(l.outputEmbeddingBytes||0)*(1-plan.gpuFraction)/memory;
- const gpuSeconds=plan.gpuBytes/(plan.gpuBandwidth||memory); // conservative shared-bandwidth estimate until a real decode is observed
+ const gpuSeconds=(dense*plan.gpuFraction+(plan.gpuExperts?routed:0))/(plan.gpuBandwidth||memory); // conservative shared-bandwidth estimate until a real decode is observed
  const seconds=(misses?misses/disk:0)+computeSeconds+gpuSeconds+.00005*(l.layers||1);
  const speed=.8/seconds;
- const detail=`${plan.gpuLayers?'GPU + CPU + SSD':'CPU + SSD'} estimate using pinned GGUF tensor sizes, ${l.expertCount?l.expertsUsed+' of '+l.expertCount+' experts per token':'dense weights'}, measured RAM/SSD bandwidth, CPU quantization probes when available and an OS/context memory reserve. ${cpuProbes.length?'':'CPU compute measurements are missing. '}${plan.gpuLayers?'GPU throughput uses measured VRAM bandwidth when available, otherwise shared RAM bandwidth. ':''}Context length, page-cache reuse, thermal limits and other apps affect speed. This is an estimate, not a model benchmark.`;
+ const detail=`${plan.mode==='gpu'?'GPU + SSD':plan.gpuLayers?'GPU + CPU + SSD':'CPU + SSD'} estimate using pinned GGUF tensor sizes, ${l.expertCount?l.expertsUsed+' of '+l.expertCount+' experts per token':'dense weights'}, measured RAM/SSD bandwidth, CPU quantization probes when available and an OS/context memory reserve. ${cpuProbes.length?'':'CPU compute measurements are missing. '}${plan.gpuLayers?'GPU throughput uses measured VRAM bandwidth when available, otherwise shared RAM bandwidth. ':''}Context length, page-cache reuse, thermal limits and other apps affect speed. This is an estimate, not a model benchmark.`;
  return {speed,plan,range:[speed*.45,speed*1.6],detail,source:'Hardware estimate'};
 }
 module.exports={planInference,estimateModel};
