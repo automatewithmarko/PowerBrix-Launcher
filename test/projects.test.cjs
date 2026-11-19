@@ -27,3 +27,16 @@ test('project updates serialize safely and reject invalid input without changing
  assert.equal((await store.get(p.id)).instructions,'Keep this instruction.');
  if(process.platform!=='win32'){assert.equal((await fs.stat(path.join(root,'projects',p.id))).mode&0o777,0o700);assert.equal((await fs.stat(path.join(root,'projects',p.id,'project.json'))).mode&0o777,0o600);}
 });
+
+test('folder projects live in the chosen folder and re-read added, edited and deleted documents',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'pbx-folder-project-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const folder=path.join(root,'source');await fs.mkdir(folder);await fs.mkdir(path.join(folder,'notes'));await fs.writeFile(path.join(folder,'notes','launch.md'),'Launch code: FIRST-CODE.');await fs.writeFile(path.join(folder,'empty.txt'),'');await fs.mkdir(path.join(folder,'node_modules'));await fs.writeFile(path.join(folder,'node_modules','private.md'),'SHOULD-NOT-BE-READ');
+ const store=new ProjectStore(path.join(root,'profile'));const p=await store.create('Folder project',folder);await store.update(p.id,{instructions:'Be concise.'});
+ const chatId=randomUUID();await store.saveChat(p.id,{id:chatId,title:'First chat',turns:[{role:'user',content:'Launch code?'}]});
+ const onDisk=JSON.parse(await fs.readFile(path.join(folder,'.powerbrix','projects',p.id+'.json'),'utf8'));assert.equal(onDisk.instructions,'Be concise.');assert.equal(onDisk.chats[0].id,chatId);
+ assert.ok((await store.context(p.id,'Launch code')).documents.some(d=>d.content.includes('FIRST-CODE')));
+ await fs.writeFile(path.join(folder,'notes','launch.md'),'Launch code: SECOND-CODE.');assert.ok((await store.context(p.id,'Launch code')).documents.some(d=>d.content.includes('SECOND-CODE')));
+ await fs.writeFile(path.join(folder,'new.txt'),'New document: THIRD-CODE.');assert.ok((await store.context(p.id,'THIRD-CODE')).files.includes('new.txt'));
+ await fs.rm(path.join(folder,'new.txt'));assert.ok(!(await store.context(p.id,'THIRD-CODE')).files.includes('new.txt'));
+ const restarted=new ProjectStore(path.join(root,'profile'));assert.equal((await restarted.get(p.id)).chats.length,1);assert.equal((await restarted.list())[0].sourceFolder,folder);
+ await restarted.delete(p.id);assert.match(await fs.readFile(path.join(folder,'notes','launch.md'),'utf8'),/SECOND-CODE/);assert.deepEqual(await restarted.list(),[]);
+});

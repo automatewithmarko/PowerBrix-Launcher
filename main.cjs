@@ -29,6 +29,7 @@ if(!app.requestSingleInstanceLock())app.exit(0);
 app.on('second-instance',()=>{if(window&&!window.isDestroyed()){if(window.isMinimized())window.restore();window.focus();}});
 const root=app.getPath('userData');
 const projects=new ProjectStore(root);
+const projectFolders=new Map();
 const settingsPath=path.join(root,'settings.json');
 const actual=process.platform==='darwin'?'mac':process.platform==='win32'?'windows':'linux';
 const platformSupported=process.platform==='darwin'&&process.arch==='arm64'||process.platform==='win32'&&process.arch==='x64';
@@ -165,13 +166,14 @@ app.whenReady().then(async()=>{
     if(!settings.plugins.includes('projects'))throw Error('Install Projects first.');
     if(operation==='list')return projects.list();
     if(operation==='get')return projects.get(input.id);
-    if(operation==='create')return projects.create(input.name);
+    if(operation==='chooseFolder'){const selection=await dialog.showOpenDialog(window,{title:'Choose a project folder',properties:['openDirectory','createDirectory']});if(selection.canceled)return null;const token=randomUUID();projectFolders.set(token,selection.filePaths[0]);return {token,path:selection.filePaths[0]};}
+    if(operation==='create'){const folder=projectFolders.get(input.folderToken);if(!folder)throw Error('Choose a folder for this project.');const project=await projects.create(input.name,folder);projectFolders.delete(input.folderToken);return project;}
     if(operation==='update')return projects.update(input.id,input);
     if(operation==='saveChat')return projects.saveChat(input.id,input.chat);
     if(operation==='removeFile')return projects.removeFile(input.id,input.fileId);
     if(operation==='deleteChat')return projects.deleteChat(input.id,input.chatId);
     if(operation==='delete'){
-      const result=await dialog.showMessageBox(window,{type:'question',message:'Delete this project?',detail:'Its local chats, instructions and saved file copies will be permanently removed. Original files are kept.',buttons:['Cancel','Delete project'],defaultId:0,cancelId:0});
+      const result=await dialog.showMessageBox(window,{type:'question',message:'Delete this project?',detail:'Its PowerBrix project metadata and chats will be removed. Documents in your source folder are kept.',buttons:['Cancel','Delete project'],defaultId:0,cancelId:0});
       if(result.response===1){await projects.delete(input.id);return {deleted:true};}return {deleted:false};
     }
     if(operation==='addFiles'){
@@ -418,18 +420,19 @@ app.whenReady().then(async()=>{
       : [];
     const prompt=history.map(({role,content})=>({role,content}));
     const enabledSkills = settings.plugins.includes('skills') ? settings.skills.filter(skill => skill.enabled) : [];
-    if(projectId){
-      if(!settings.plugins.includes('projects'))throw Error('Install Projects first.');
-      const shared=await projects.context(projectId,prompt.at(-1).content);
-      enabledSkills.push({name:'Project: '+shared.name,content:shared.instructions+'\nShared project files: '+shared.files.join(', ')});
-      documents.push(...shared.documents);
-    }
     if(quitting)throw Error('PowerBrix Launcher is closing.');
     if(chat||scan||engineTask||modelMutation)throw Error('A scan or reply is already running.');
     const controller=new AbortController();
     chat=controller;
     const progress=status=>notify('chat', {status});
     try {
+    if(projectId){
+      if(!settings.plugins.includes('projects'))throw Error('Install Projects first.');
+      notify('chat',{status:'Reading project folder…'});
+      const shared=await projects.context(projectId,prompt.at(-1).content,controller.signal);
+      enabledSkills.push({name:'Project: '+shared.name,content:shared.instructions+'\nShared project files: '+shared.files.slice(0,30).join(', ')+(shared.files.length>30?' (and '+(shared.files.length-30)+' more files in the folder)':'')+(shared.unreadableFiles?.length?'\nThese files could not be read. Explain this if they are needed: '+shared.unreadableFiles.slice(0,10).join('; '):'')});
+      documents.push(...shared.documents);
+    }
       let sources = [];
       if (useWebSearch) {
         progress('Searching the web…');

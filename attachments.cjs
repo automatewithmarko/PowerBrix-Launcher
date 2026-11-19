@@ -6,14 +6,15 @@ const textExtensions = ['txt','md','markdown','csv','tsv','json','jsonl','log','
 const extensions = ['pdf','docx',...textExtensions];
 const maxAttachments = 3;
 const maxFileBytes = 12 * 1024 * 1024;
-const maxExtractedChars = 32000;
+const defaultMaxExtractedChars = 32000;
 
 function supportsFiles(model) {
   // The native chat server accepts the extracted text and exposes its tokenizer.
   return model?.runtime === 'native' || model?.runtime === 'gemma' || model?.runtime === 'mapped';
 }
 
-async function readAttachment(filename) {
+async function readAttachment(filename,options={}) {
+  const maxExtractedChars=options.maxExtractedChars||defaultMaxExtractedChars;
   const name = path.basename(filename);
   const extension = path.extname(name).slice(1).toLowerCase();
   if (!extensions.includes(extension)) throw Error('Unsupported file type.');

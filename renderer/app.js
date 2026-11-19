@@ -6,7 +6,8 @@ if (demo) document.title = 'PowerBrix Launcher Demo';
 let state,page,platformOpen=false,busy=false,thinking=false,answer='',reasoning='',status='',toastTimer;
 let pluginQuery = '';
 let historyQuery = '';
-let activeProject=null,projectList=[],projectSaving=Promise.resolve();
+let activeProject=null,projectList=[],projectSaving=Promise.resolve(),chosenProjectFolder=null,settingsProjectId=null;
+const expandedProjects=new Set();
 let renderedPage;
 let streamReasoningOpen = false;
 let engineMenuOpen = false;
@@ -41,6 +42,8 @@ const icons={
   close:icon('M6 6l12 12M18 6L6 18'),
   chat:icon('M20 11.5a7.5 7.5 0 0 1-7.5 7.5H4l1.4-3A7.5 7.5 0 1 1 20 11.5Z'),
   plugins:icon('M4 8h4V6a2 2 0 0 1 4 0v2h4v4h2a2 2 0 0 1 0 4h-2v4h-4v-2a2 2 0 0 0-4 0v2H4v-4h2a2 2 0 0 0 0-4H4Z'),
+  more:icon('M5 12h.01M12 12h.01M19 12h.01'),
+  folderOpen:icon('M3 8V5h6l2 2h9v4M3 9h18l-3 11H3V9Z'),
   projects:icon('M3 6h7l2 2h9v12H3V6Zm0 4h18'),
   history:icon('M3 12a9 9 0 1 0 3-6.7L3 8m0-4v4h4m5-1v5l3 2'),
   mic:icon('M9 5a3 3 0 0 1 6 0v7a3 3 0 0 1-6 0V5Zm-3 7a6 6 0 0 0 12 0m-6 6v4m-3 0h6'),
@@ -73,11 +76,11 @@ const speed=value=>value>=10?value.toFixed(0):value>=.1?value.toFixed(1):value.t
 const bandwidth=value=>value?(value/1e9).toFixed(1)+' GB/s':'';
 const button=(action,label,cls='btn secondary',attrs='')=>'<button type="button" data-action="'+action+'" class="'+cls+'" '+attrs+'>'+label+'</button>';
 const hasPlugin = id => state.plugins?.includes(id);
-const historyOn = () => hasPlugin('chat-history')||Boolean(activeProject);
+const historyOn = () => hasPlugin('chat-history')||hasPlugin('projects')||Boolean(activeProject);
 const chatList=()=>activeProject?activeProject.chats:conversations;
-const setChatList=list=>{if(activeProject)activeProject.chats=list;else conversations=list;};
-function saveProjectChat(chat){const id=activeProject.id;const copy=structuredClone(chat);projectSaving=projectSaving.catch(()=>{}).then(()=>api.projects('saveChat',{id,chat:copy}));projectSaving.catch(tell);return projectSaving;}
-function leaveProject(){editingIndex=null;editingDraft='';activeProject=null;currentChat=null;historyQuery='';pendingFiles=[];try{turns=JSON.parse(localStorage.getItem('powerbrix-chat')||'[]');}catch{turns=[];}if(hasPlugin('chat-history'))readHistory();}
+const setChatList=list=>{if(activeProject){activeProject.chats=list;syncProjectSummary();}else conversations=list;};
+function saveProjectChat(chat){syncProjectSummary();const id=activeProject.id;const copy=structuredClone(chat);projectSaving=projectSaving.catch(()=>{}).then(()=>api.projects('saveChat',{id,chat:copy}));projectSaving.catch(tell);return projectSaving;}
+function leaveProject(){editingIndex=null;editingDraft='';activeProject=null;currentChat=null;historyQuery='';pendingFiles=[];try{turns=JSON.parse(localStorage.getItem('powerbrix-chat')||'[]');}catch{turns=[];}if(historyOn())readHistory();}
 
 const chatBusy = () => thinking || choosingFiles || Boolean(voicePhase);
 const isClearCommand = text => /^\/clear$/i.test(text.trim());
@@ -219,7 +222,7 @@ function catalogPanel(rows){
 }
 
 const nav=[['chat','AI Chat'],['plugins','Plugins'],['models','My Models'],['discover','Discover Models']];
-const navItems=()=>[nav[0],...(hasPlugin('projects')?[['projects','Projects']]:[]),...nav.slice(1),...(hasPlugin('api')?[['api','API']]:[])];
+const navItems=()=>[nav[0],...nav.slice(1),...(hasPlugin('api')?[['api','API']]:[])];
 const engineLabels={stopped:'Engine Stopped',loading:'Model loading',running:'Engine Running'};
 function updateEngineStatus(status) {
   const indicator=document.querySelector('#engine-status');
@@ -363,18 +366,18 @@ function historyMatches(chat) {
 function filterChatHistory() {
   let visible=0;
   document.querySelectorAll('.history-item[data-chat-id]').forEach(item=>{
-    const match=chatList().find(chat=>chat.id===item.dataset.chatId);
+    const match=(item.dataset.projectId?projectList.find(p=>p.id===item.dataset.projectId)?.chats||[]:conversations).find(chat=>chat.id===item.dataset.chatId);
     item.hidden=!match||!historyMatches(match);if(!item.hidden)visible++;
   });
   const empty=document.querySelector('.history-empty');
-  if(empty){empty.hidden=visible>0;empty.textContent=historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.';}
+  if(empty){empty.hidden=conversations.some(historyMatches);empty.textContent=historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.';}
 }
 function chatHistory() {
   const blocked = chatBusy() ? 'disabled' : '';
-  const items = chatList().map(chat => {
+  const items = conversations.map(chat => {
     const title = esc(chat.title);
     return `<li class="history-item" data-chat-id="${esc(chat.id)}"${historyMatches(chat)?'':' hidden'}>
-      ${button('open-chat:'+chat.id,title,'history-chat','title="'+title+'" '+(currentChat===chat.id?'aria-current="true" ':'')+blocked)}
+      ${button('open-chat:'+chat.id,title,'history-chat','title="'+title+'" '+(!activeProject&&currentChat===chat.id?'aria-current="true" ':'')+blocked)}
       <div class="history-actions">
         ${button('rename-chat:'+chat.id,icons.edit,'history-icon','aria-label="Rename '+title+'" title="Rename chat" '+blocked)}
         ${button('delete-chat:'+chat.id,icons.trash,'history-icon','aria-label="Delete '+title+'" title="Delete chat" '+blocked)}
@@ -382,10 +385,10 @@ function chatHistory() {
     </li>`;
   }).join('');
   return `<aside class="chat-history" aria-label="Chat history">
-    ${activeProject?button('project-details',icons.projects+'<span>'+esc(activeProject.name)+'</span>','project-chat-back','title="Project files and instructions"'):''}
     <div class="history-toolbar"><label class="history-search">${icons.search}<input id="history-search" type="search" placeholder="Search chats" aria-label="Search chat history" value="${esc(historyQuery)}"></label>${button('new',icons.plus,'history-new','aria-label="New chat" title="New chat" '+blocked)}</div>
+    ${projectsSection()}
     <h2>Chat history</h2>
-    <ul>${items}</ul><p class="history-empty"${chatList().some(historyMatches)?' hidden':''}>${historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.'}</p>
+    <ul>${items}</ul><p class="history-empty"${conversations.some(historyMatches)?' hidden':''}>${historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.'}</p>
   </aside>`;
 }
 
@@ -478,7 +481,7 @@ function chatArea(){
       +(turn.role==='user'?button('edit-message:'+index,icons.edit,'message-action','aria-label="Edit message" title="Edit message" '+(chatBusy()?'disabled':'')):'')
       +button('regenerate:'+index,icons.restart,'message-action','aria-label="Regenerate response" title="Regenerate response" '+(chatBusy()?'disabled':''))+'</div></div>';
   }).join('');
-  const welcome='<div class="chat-welcome"><span class="tile">'+icons.chat+'</span><h1>What Can I <em>Help With?</em></h1><p>Your models. Your machine. Your conversation.</p></div>';
+  const welcome='<div class="chat-welcome"><span class="tile">'+icons.chat+'</span><h1>What Can I <em>Help With?</em></h1><p>'+(activeProject?'Working in '+esc(activeProject.name)+'. Your project folder is available to this chat.':'Your models. Your machine. Your conversation.')+'</p></div>';
   const streaming=thinking&&regeneratingIndex===null?stream:'';
   const header = '<header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>AI Chat</h2></div>'
     +button('new',icons.plus+' New chat','btn secondary compact',thinking?'disabled':'')
@@ -487,7 +490,7 @@ function chatArea(){
     +'</div><div class="composer-wrap">'+chatComposer(active)+'<div id="chat-stats" class="chat-stats" aria-label="Chat performance"'+(turns.length?'':' hidden')+'>'+chatStats()+'</div></div></section>';
   return '<main class="workspace chat-layout">'+(historyOn()?chatHistory():'')+content
     +(historyOn()?'<dialog id="history-dialog" aria-labelledby="history-dialog-title"><form id="history-form"><h2 id="history-dialog-title"></h2><p></p><label>Chat name<input name="title" maxlength="80" required></label><div>'
-      +button('cancel-history','Cancel','btn secondary compact')+'<button type="submit" class="btn primary compact">Save</button></div></form></dialog>':'')+'</main>';
+      +button('cancel-history','Cancel','btn secondary compact')+'<button type="submit" class="btn primary compact">Save</button></div></form></dialog>':'')+(hasPlugin('projects')?projectDialogs():'')+'</main>';
 }
 const plugins = [
   {id:'projects',name:'Projects',icon:'projects',description:'Organize your work with shared local files, instructions, and multiple chats.'},
@@ -498,33 +501,30 @@ const plugins = [
   {id:'internet-search', name:'Internet Search', icon:'globe', description:'Find current information on the web and bring sources into your chat.'},
 ];
 
-function projectsPage(){
- const project=activeProject;
- const heading='<header class="projects-heading"><div><span class="projects-local">'+icons.projects+' Stored on this computer</span><h1>'+(project?esc(project.name):'Your <em>Projects.</em>')+'</h1><p>'+(project?'One workspace. Shared context. Separate conversations.':'Give your work a home, with files and instructions your local AI can use in every chat.')+'</p></div>'+button(project?'project-new-chat':'project-create',icons.plus+(project?' New chat':' Create project'),'btn primary')+'</header>';
- const cards=projectList.map(p=>button('project-open:'+p.id,'<span class="project-card-icon">'+icons.projects+'</span><h2>'+esc(p.name)+'</h2><p>'+p.chatCount+' chats <span>·</span> '+p.fileCount+' shared files</p><span class="project-card-open">Open project '+icons.arrow+'</span>','project-card')).join('');
- const detail=project?'<div class="project-layout"><section class="project-context"><div class="project-section-title"><h2>Shared context</h2><span>Local only</span></div><label class="project-name-label">Project name<input id="project-name" maxlength="80" value="'+esc(project.name)+'"></label><label class="project-instructions-label">Instructions<textarea id="project-instructions" maxlength="12000" placeholder="How should your AI work in this project? Add your goals, preferred tone, rules, or background.">'+esc(project.instructions)+'</textarea></label><div class="project-save-row"><small>Applied to every chat in this project.</small>'+button('project-save','Save changes','btn secondary compact')+'</div><div class="project-section-title project-files-title"><h2>Shared files</h2>'+button('project-files',icons.plus+' Add files','textbtn')+'</div><p class="project-file-help">PDF, Word and text files. Saved copies stay here after you restart. Relevant text excerpts are used within the model’s context limit.</p><ul class="project-files">'+project.files.map(f=>'<li>'+icons.projects+'<span>'+esc(f.name)+(f.shortened?'<small>Text excerpt saved</small>':'')+'</span>'+button('project-remove-file:'+f.id,icons.trash,'message-action','aria-label="Remove '+esc(f.name)+'"')+'</li>').join('')+'</ul>'+(!project.files.length?'<div class="project-files-empty">Add reference material once. Use it across your project’s chats.</div>':'')+'</section><section class="project-chats"><div class="project-section-title"><h2>Conversations</h2><span>'+project.chats.length+'</span></div>'+(project.chats.length?project.chats.map(c=>button('project-chat:'+c.id,icons.chat+'<span><strong>'+esc(c.title)+'</strong><small>'+c.turns.length+' messages</small></span>'+icons.arrow,'project-chat-card')).join(''):'<div class="project-empty"><span>'+icons.chat+'</span><h3>Start with a conversation.</h3><p>Your project instructions and shared files will be ready when you need them.</p>'+button('project-new-chat','Start a chat '+icons.arrow,'btn primary')+'</div>')+'</section></div>':'';
- return '<main class="workspace projects-workspace"><div class="projects-content">'+(project?button('project-back',icons.arrow+' All projects','project-back'):'')+heading+(project?detail:cards?'<div class="project-grid">'+cards+'</div>':'<div class="projects-first"><span>'+icons.projects+'</span><h2>A workspace for every idea.</h2><p>Keep client work, research and personal projects organized. Your files and conversations stay on your device.</p>'+button('project-create','Create your first project '+icons.plus,'btn secondary')+'</div>')+(project?'<div class="project-bottom">'+button('project-delete','Delete project','textbtn')+'</div>':'')+'</div><dialog id="project-create-dialog"><form id="project-create-form"><span class="projects-local">Local workspace</span><h2>Create a project</h2><label>Project name<input name="name" maxlength="80" placeholder="For example, My business" required></label><p>Add shared files and instructions after creating your project.</p><div>'+button('project-cancel','Cancel','btn secondary')+'<button type="submit" class="btn primary">Create project</button></div></form></dialog></main>';
+function projectsSection(){
+ if(!hasPlugin('projects'))return '';
+ return '<section class="inline-projects" aria-label="Projects"><div class="inline-section-heading"><span>Projects</span>'+button('project-create',icons.plus,'plain-icon','aria-label="Create project" title="Create project"')+'</div><div class="project-tree">'+projectList.map(p=>{
+ const expanded=expandedProjects.has(p.id);return '<div class="project-tree-item"><div class="project-tree-row'+(activeProject?.id===p.id?' selected':'')+'">'+button('project-toggle:'+p.id,icons.folderOpen+'<span>'+esc(p.name)+'</span>','project-tree-name','aria-expanded="'+expanded+'" aria-controls="project-chats-'+p.id+'"')+'<div class="project-tree-actions">'+button('project-settings:'+p.id,icons.more,'plain-icon','aria-label="Settings for '+esc(p.name)+'" title="Project settings"')+button('project-new-chat:'+p.id,icons.plus,'plain-icon','aria-label="New chat in '+esc(p.name)+'" title="New project chat"')+'</div></div><ul id="project-chats-'+p.id+'" class="project-tree-chats"'+(expanded?'':' hidden')+'>'+(p.chats||[]).map(c=>'<li class="history-item" data-chat-id="'+c.id+'" data-project-id="'+p.id+'">'+button('project-chat:'+c.id,esc(c.title),'history-chat','data-project-id="'+p.id+'" '+(activeProject?.id===p.id&&currentChat===c.id?'aria-current="true"':''))+'<div class="history-actions">'+button('project-rename-chat:'+c.id,icons.edit,'history-icon','data-project-id="'+p.id+'" aria-label="Rename '+esc(c.title)+'"')+button('project-delete-chat:'+c.id,icons.trash,'history-icon','data-project-id="'+p.id+'" aria-label="Delete '+esc(c.title)+'"')+'</div></li>').join('')+(!(p.chats||[]).length?'<li class="project-tree-empty">No chats yet</li>':'')+'</ul></div>';
+ }).join('')+'</div></section>';
 }
-async function saveProjectDetails(){
- const id=activeProject.id;const name=document.querySelector('#project-name')?.value??activeProject.name;
- const instructions=document.querySelector('#project-instructions')?.value??activeProject.instructions;
- await projectSaving.catch(()=>{});
- activeProject=await api.projects('update',{id,name,instructions});
+function projectDialogs(){return '<dialog id="project-create-dialog" class="project-dialog"><form id="project-create-form"><header><h2>Create project</h2>'+button('project-cancel',icons.close,'plain-icon','aria-label="Close"')+'</header><label class="project-name-input">'+icons.folderOpen+'<input name="name" maxlength="80" placeholder="Project name" aria-label="Project name" required></label><label class="project-source-label">Source folder</label><div class="project-folder-picker"><span id="project-folder-label">Add a folder on this computer</span>'+button('project-choose-folder',icons.folderOpen+'<span>Add folder</span>','project-folder-add')+'</div><p class="project-folder-note">Your project lives in this folder. Every project chat can use its supported documents.</p><footer>'+button('project-cancel','Cancel','project-cancel')+'<button type="submit" class="btn primary" id="project-create-submit" disabled>Create Project</button></footer></form></dialog>'
+ +'<dialog id="project-settings-dialog" class="project-dialog"><form id="project-settings-form"><header><h2>Project settings</h2>'+button('project-settings-cancel',icons.close,'plain-icon','aria-label="Close"')+'</header><label>Project name<input name="name" maxlength="80" required></label><label>Source folder<span id="project-settings-folder" class="project-settings-folder"></span></label><label>Shared instructions<textarea name="instructions" maxlength="12000" placeholder="Goals, tone, background, or rules for every chat in this project."></textarea></label><footer>'+button('project-delete','Delete project','project-delete')+button('project-settings-cancel','Cancel','project-cancel')+'<button type="submit" class="btn primary">Save</button></footer></form></dialog>';
 }
+function syncProjectSummary(){if(!activeProject)return;const p=activeProject;const summary={id:p.id,name:p.name,sourceFolder:p.sourceFolder,chatCount:p.chats.length,chats:p.chats.map(({id,title})=>({id,title}))};projectList=[summary,...projectList.filter(item=>item.id!==p.id)];}
+async function activateProject(id){await projectSaving.catch(()=>{});if(activeProject?.id!==id){activeProject=await api.projects('get',{id});currentChat=null;turns=[];pendingFiles=[];editingIndex=null;}expandedProjects.add(id);historyQuery='';}
 async function handleProjectAction(action,value,el){
  if(chatBusy())return;
  try{
-  if(action==='project-create'){document.querySelector('#project-create-dialog').showModal();document.querySelector('#project-create-form input').focus();return;}
+  if(action==='project-create'){chosenProjectFolder=null;const dialog=document.querySelector('#project-create-dialog');dialog.querySelector('form').reset();dialog.querySelector('#project-folder-label').textContent='Add a folder on this computer';dialog.querySelector('[type=submit]').disabled=true;dialog.showModal();dialog.querySelector('input').focus();return;}
   if(action==='project-cancel'){document.querySelector('#project-create-dialog').close();return;}
-  if(action==='project-open'){await projectSaving.catch(()=>{});activeProject=await api.projects('get',{id:value});currentChat=null;turns=[];historyQuery='';page='projects';render();return;}
-  if(action==='project-details'){page='projects';render();return;}
-  if(action==='project-back'){await projectSaving.catch(()=>{});leaveProject();projectList=await api.projects('list');page='projects';render();return;}
-  if(action==='project-new-chat'){page='chat';historyQuery='';openConversation(null);return;}
-  if(action==='project-chat'){page='chat';openConversation(value);return;}
-  if(action==='project-save'){el.disabled=true;await saveProjectDetails();render();tell('Project changes saved on this computer.');return;}
-  if(action==='project-files'){el.disabled=true;await saveProjectDetails();activeProject=await api.projects('addFiles',{id:activeProject.id});render();return;}
-  if(action==='project-remove-file'){el.disabled=true;await saveProjectDetails();activeProject=await api.projects('removeFile',{id:activeProject.id,fileId:value});render();return;}
-  if(action==='project-delete'){const result=await api.projects('delete',{id:activeProject.id});if(result.deleted){leaveProject();projectList=await api.projects('list');page='projects';render();}return;}
+  if(action==='project-choose-folder'){el.disabled=true;try{const chosen=await api.projects('chooseFolder');if(chosen){chosenProjectFolder=chosen;document.querySelector('#project-folder-label').textContent=chosen.path;document.querySelector('#project-create-submit').disabled=false;el.innerHTML=icons.folderOpen+'<span>Change folder</span>';}}finally{el.disabled=false;}return;}
+  if(action==='project-toggle'){if(expandedProjects.has(value))expandedProjects.delete(value);else expandedProjects.add(value);render();return;}
+  if(action==='project-new-chat'){await activateProject(value);page='chat';openConversation(null);return;}
+  if(action==='project-chat'){await activateProject(el.dataset.projectId);page='chat';openConversation(value);return;}
+  if(action==='project-rename-chat'||action==='project-delete-chat'){await activateProject(el.dataset.projectId);openConversation(value);editChat(value,action==='project-delete-chat');return;}
+  if(action==='project-settings'){const p=await api.projects('get',{id:value});settingsProjectId=value;const dialog=document.querySelector('#project-settings-dialog');dialog.querySelector('[name=name]').value=p.name;dialog.querySelector('[name=instructions]').value=p.instructions;dialog.querySelector('#project-settings-folder').textContent=p.sourceFolder||'Legacy project: saved local files';dialog.showModal();return;}
+  if(action==='project-settings-cancel'){document.querySelector('#project-settings-dialog').close();return;}
+  if(action==='project-delete'){const result=await api.projects('delete',{id:settingsProjectId});if(result.deleted){if(activeProject?.id===settingsProjectId)leaveProject();projectList=await api.projects('list');render();}return;}
  }catch(error){tell(error);el.disabled=false;}
 }
 
@@ -648,7 +648,6 @@ function workspace(){
   if(page==='chat')return sidebar()+chatArea();
   if(page==='plugins')return sidebar()+pluginsPage();
   if(page==='api')return sidebar()+apiPage();
-  if(page==='projects')return sidebar()+projectsPage();
   let local=page==='models';
   return sidebar()+'<main class="workspace listing"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>'+ (local?'My Models':'Discover Models')+'</h2></div><div class="listing-tools">'+(demo?button('preview-wait','Preview Tetris','btn secondary compact'):'')+button('scan',state.scan?'Analyzing…':'Analyze System','btn secondary compact',state.scan||busy||state.pull||!state.platformSupported||state.platform!==state.actual?'disabled':'')+'</div></header><div class="listing-content"><h1>'+(local?'Your <em>Local Models.</em>':'Find Your <em>Next Model.</em>')+'</h1><p>'+(local?'Models you have downloaded on the selected drive.':'Compare storage requirements and estimated performance, then pull a model to use it locally.')+'</p>'+(state.scan?'<p class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></p>':'')+(local?'':machine()+analysisNotice())+catalogPanel(state.models.filter(model=>local?model.local:model.runtime!=='fixture'))+'</div></main>';
 }
@@ -888,7 +887,8 @@ root.addEventListener('click',async event=>{
     try {
       const next = await api.installPlugin(value);
       state.plugins = next.plugins;
-      if (value === 'chat-history') readHistory();
+      if (value === 'chat-history'||value==='projects') readHistory();
+      if(value==='projects')projectList=await api.projects('list');
       render();
     } catch(error) {
       tell(error);
@@ -916,15 +916,13 @@ root.addEventListener('click',async event=>{
     } catch (error) {tell(error);el.disabled=false;}
     return;
   }
-  if (action === 'open-chat') {openConversation(value);return;}
-  if (action === 'rename-chat' || action === 'delete-chat') {editChat(value,action==='delete-chat');return;}
+  if (action === 'open-chat') {if(chatBusy())return;if(activeProject){await projectSaving.catch(()=>{});leaveProject();}openConversation(value);return;}
+  if (action === 'rename-chat' || action === 'delete-chat') {if(chatBusy())return;if(activeProject){await projectSaving.catch(()=>{});leaveProject();render();}editChat(value,action==='delete-chat');return;}
   if (action === 'cancel-history') {document.querySelector('#history-dialog').close();return;}
   if(navItems().some(([key])=>key===action)||action==='setup'){
-    if(action==='projects'&&chatBusy())return;
     modelMenuOpen=false;
     skillsMenuOpen=false;
-    if((action==='chat'||action==='projects')&&activeProject){if(chatBusy())return;await projectSaving.catch(()=>{});leaveProject();}
-    if(action==='projects'){try{projectList=await api.projects('list');}catch(error){tell(error);return;}}
+    if(action==='chat'&&activeProject){if(chatBusy())return;await projectSaving.catch(()=>{});leaveProject();}
     page=action;
     apiKeyRevealed=false;apiCodeRevealed=false;catalogMenu=null;
     render();
@@ -1003,7 +1001,7 @@ root.addEventListener('click',async event=>{
   if(action==='scan'){busy=true;state.scan='Preparing system analysis…';render();await perform('scan');state.scan=null;busy=false;render();return;}
   if(action==='pull'){state.pull={id:value};render();const next=await perform('pull',value);state.pull=next?.pull;render();return;}
   if(action==='use'){if(await perform('select',value)){page='chat';render();}return;}
-  if(action==='new'){historyQuery='';openConversation(null);return;}
+  if(action==='new'){if(activeProject){await projectSaving.catch(()=>{});leaveProject();}historyQuery='';openConversation(null);return;}
   if(['pause','stop','folder'].includes(action))await perform(action);
 });
 root.addEventListener('input',event=>{
@@ -1070,7 +1068,8 @@ root.addEventListener('keydown',event=>{
   if(event.target.id==='prompt'&&event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();document.querySelector('#composer')?.requestSubmit();}
 });
 root.addEventListener('submit',async event=>{
-  if(event.target.id==='project-create-form'){event.preventDefault();const form=event.target;const submit=form.querySelector('[type=submit]');submit.disabled=true;try{activeProject=await api.projects('create',{name:form.elements.name.value});currentChat=null;turns=[];page='projects';render();}catch(error){tell(error);submit.disabled=false;}return;}
+  if(event.target.id==='project-create-form'){event.preventDefault();const form=event.target;const submit=form.querySelector('[type=submit]');submit.disabled=true;try{const project=await api.projects('create',{name:form.elements.name.value,folderToken:chosenProjectFolder?.token});activeProject=project;projectList=await api.projects('list');expandedProjects.add(project.id);currentChat=null;turns=[];pendingFiles=[];historyQuery='';page='chat';render();}catch(error){tell(error);submit.disabled=false;}return;}
+  if(event.target.id==='project-settings-form'){event.preventDefault();const form=event.target;const submit=form.querySelector('[type=submit]');submit.disabled=true;try{await projectSaving.catch(()=>{});const project=await api.projects('update',{id:settingsProjectId,name:form.elements.name.value,instructions:form.elements.instructions.value});if(activeProject?.id===project.id)activeProject=project;projectList=await api.projects('list');render();}catch(error){tell(error);submit.disabled=false;}return;}
   if(event.target.hasAttribute('data-message-edit')){event.preventDefault();await resendEditedMessage(Number(event.target.dataset.messageEdit));return;}
   if (event.target.id === 'history-form') {
     event.preventDefault();
@@ -1222,7 +1221,7 @@ function updatePullProgress(value) {
   render();
 }
 api.onPull(updatePullProgress);
-api.state().then(data=>{state=data;if(historyOn())readHistory();page=demo?'models':state.onboarded&&state.report?.machine?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
+api.state().then(async data=>{state=data;if(historyOn())readHistory();if(hasPlugin('projects'))projectList=await api.projects('list');page=demo?'models':state.onboarded&&state.report?.machine?'chat':'setup';render();}).catch(error=>{tell(error);root.textContent='PowerBrix Launcher could not load.';});
 
 const skillDialog = document.querySelector('#skill-dialog');
 const skillForm = document.querySelector('#skill-form');
