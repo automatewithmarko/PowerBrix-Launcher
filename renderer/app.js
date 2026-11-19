@@ -386,9 +386,9 @@ function chatHistory() {
     </li>`;
   }).join('');
   return `<aside class="chat-history" aria-label="Chat history">
-    <div class="history-toolbar"><label class="history-search">${icons.search}<input id="history-search" type="search" placeholder="Search chats" aria-label="Search chat history" value="${esc(historyQuery)}"></label>${button('new',icons.plus,'history-new','aria-label="New chat" title="New chat" '+blocked)}</div>
+    <div class="history-toolbar"><label class="history-search">${icons.search}<input id="history-search" type="search" placeholder="Search chats" aria-label="Search chat history" value="${esc(historyQuery)}"></label></div>
     ${projectsSection()}
-    <h2>Chat history</h2>
+    <div class="inline-section-heading chats-section-heading"><span>Chats</span>${button('new',icons.plus,'plain-icon','aria-label="New chat" title="New chat" '+blocked)}</div>
     <ul>${items}</ul><p class="history-empty"${conversations.some(historyMatches)?' hidden':''}>${historyQuery.trim()?'No matching conversations.':'Your conversations will appear here.'}</p>
   </aside>`;
 }
