@@ -202,8 +202,7 @@ function catalogControls(rows){
 function catalogPanel(rows){
   const browsing=page!=='models';
   const filtered=browsing?window.PowerBrixCatalog.filterModels(rows,catalogFilter):rows;
-  return '<section class="catalog"><header><div><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+button('folder','Change storage','btn secondary compact',state.pull||busy?'disabled':'')+'</header>'
-    +(browsing?catalogControls(rows):'')
+  return '<section class="catalog"><header class="catalog-header"><div class="catalog-heading"><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+(browsing?catalogControls(rows):'')+button('folder','Change storage','btn secondary compact',state.pull||busy?'disabled':'')+'</header>'
     +(filtered.length?modelRows(filtered):browsing?'<div class="catalog-no-results"><h3>No matching models</h3><p>Try another provider or parameter size.</p>'+button('catalog-reset','Reset filters','btn secondary compact')+'</div>':modelRows(filtered))
     +'<footer>Estimates vary with context and hardware. SSD streaming can run models larger than RAM, provided they fit on your drive. Memory sorting uses model weight size, not minimum RAM.</footer></section>';
 }
