@@ -69,7 +69,23 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           "${env:ProgramFiles(x86)}\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Prepare Apple distribution signing
+        if: matrix.platform == 'mac' && vars.POWERBRIX_MAC_SIGNING == 'enabled'
+        env:
+          PBX_APPLE_CERTIFICATE: ${{ secrets.PBX_APPLE_CERTIFICATE }}
+          PBX_APPLE_CERTIFICATE_PASSWORD: ${{ secrets.PBX_APPLE_CERTIFICATE_PASSWORD }}
+          PBX_APPLE_API_KEY: ${{ secrets.PBX_APPLE_API_KEY }}
+          PBX_APPLE_API_KEY_ID: ${{ secrets.PBX_APPLE_API_KEY_ID }}
+          PBX_APPLE_API_ISSUER: ${{ secrets.PBX_APPLE_API_ISSUER }}
+          POWERBRIX_APPLE_SIGNING_IDENTITY: ${{ vars.POWERBRIX_APPLE_SIGNING_IDENTITY }}
+        run: node packaging/apple-ci-setup.mjs
       - run: npm run package:${{ matrix.platform }}
+      - name: Remove temporary Apple keychain
+        if: always() && matrix.platform == 'mac' && vars.POWERBRIX_MAC_SIGNING == 'enabled'
+        run: |
+          if [ -n "$POWERBRIX_APPLE_KEYCHAIN" ]; then
+            security delete-keychain "$POWERBRIX_APPLE_KEYCHAIN"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: launcher-${{ matrix.platform }}

@@ -5,12 +5,14 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {packager} from '@electron/packager';
 import {packageWhisper} from './whisper.mjs';
+import {macSigningConfiguration, notarizeDiskImage} from './mac-signing.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const product = 'PowerBrix Launcher';
 const platform = process.argv[2];
 const output = path.join(root, 'build');
 const icon = path.join(root, 'assets', platform === 'mac' ? 'icon.icns' : 'icon.ico');
+const macSigning = platform === 'mac' ? macSigningConfiguration() : null;
 
 if (!['mac', 'win'].includes(platform)) throw new Error('Choose mac or win.');
 if (platform === 'mac' && process.platform !== 'darwin') {
@@ -39,6 +41,7 @@ try {
     ...(platform === 'mac' ? {
       appBundleId: 'ai.powerbrix.infer',
       extendInfo: {NSMicrophoneUsageDescription: 'PowerBrix turns your voice into a chat prompt on this device.'},
+      ...(macSigning ? {osxSign: macSigning.osxSign, osxNotarize: macSigning.osxNotarize} : {}),
     } : {
       win32metadata: {
         CompanyName: 'PowerBrix',
@@ -53,13 +56,21 @@ try {
     const bundle = path.join(appDir, product + '.app');
     const dmgName = 'PowerBrix-Launcher-macOS-arm64.dmg';
     const diskImage = path.join(stage, dmgName);
-    run('xattr', ['-cr', bundle]);
-    run('codesign', ['--force', '--deep', '--sign', '-', bundle]);
+    if (!macSigning) {
+      run('xattr', ['-cr', bundle]);
+      run('codesign', ['--force', '--deep', '--sign', '-', bundle]);
+    }
     run('codesign', ['--verify', '--deep', '--strict', bundle]);
+    if (macSigning) {
+      run('xcrun', ['stapler', 'validate', bundle]);
+      run('spctl', ['--assess', '--type', 'execute', '--verbose=2', bundle]);
+    }
     run('dmgbuild', ['-s', path.join(root, 'packaging', 'dmg-settings.py'),
       '-D', 'app=' + bundle,
       '-D', 'background=' + path.join(root, 'packaging', 'dmg-background.tiff'),
       '-D', 'icon=' + icon, product, diskImage]);
+    if (macSigning) notarizeDiskImage(diskImage, macSigning, (executable,args) =>
+      execFileSync(executable,args,{encoding:'utf8',stdio:['ignore','pipe','inherit']}));
     await copyFile(diskImage, path.join(output, dmgName));
   } else {
     const option = process.platform === 'win32' ? '/' : '-';
