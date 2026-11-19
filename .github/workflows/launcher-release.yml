@@ -5,6 +5,12 @@ on:
     branches: [main]
     paths: [new-update.json]
   workflow_dispatch:
+    inputs:
+      mac_runner:
+        description: GitHub-hosted Apple Silicon runner
+        type: choice
+        default: macos-26
+        options: [macos-26, macos-15]
 
 permissions:
   contents: read
@@ -44,7 +50,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-26
+          - runner: ${{ inputs.mac_runner || 'macos-26' }}
             platform: mac
             asset: PowerBrix-Launcher-macOS-arm64.dmg
           - runner: windows-2025
