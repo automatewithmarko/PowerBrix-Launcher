@@ -14,7 +14,9 @@
         "sha256": "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee"
       }
     ],
-    "logo": "gemma"
+    "logo": "gemma",
+    "parameterCount": 7463013674,
+    "parameterSource": "https://huggingface.co/api/models/google/gemma-4-E4B-it-qat-q4_0-gguf/revision/4b4a2c1d584be7264f87aac328a1bc739ce81b6c"
   },
   {
     "id": "qwen35",
@@ -31,7 +33,9 @@
         "sha256": "707a55a8a4397ecde44de0c499d3e68c1ad1d240d1da65826b4949d1043f4450"
       }
     ],
-    "logo": "qwen"
+    "logo": "qwen",
+    "parameterCount": 34660610688,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Qwen3.6-35B-A3B-GGUF/revision/a483e9e6cbd595906af30beda3187c2663a1118c"
   },
   {
     "id": "qwen27",
@@ -48,7 +52,9 @@
         "sha256": "5ed60d0af4650a854b1755bd392f9aef4872643dc25a254bc68043fa638392a0"
       }
     ],
-    "logo": "qwen"
+    "logo": "qwen",
+    "parameterCount": 26895998464,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Qwen3.6-27B-GGUF/revision/82d411acf4a06cfb8d9b073a5211bf410bfc29bf"
   },
   {
     "id": "gptoss",
@@ -65,7 +71,9 @@
         "sha256": "27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901"
       }
     ],
-    "logo": "openai"
+    "logo": "openai",
+    "parameterCount": 20914757184,
+    "parameterSource": "https://huggingface.co/api/models/ggml-org/gpt-oss-20b-GGUF/revision/41e8a94d15d62070b36cf4553a0250717ecf46b8"
   },
   {
     "id": "qwenflash",
@@ -92,7 +100,9 @@
         "sha256": "a806a0382ea6f043b9180baa12956ee8aa2121fdd385dee0d613727e1ddd08b5"
       }
     ],
-    "logo": "qwen"
+    "logo": "qwen",
+    "parameterCount": 176943899520,
+    "parameterSource": "https://huggingface.co/api/models/bartowski/Qwen3.8-Flash-Next-GGUF/revision/db3a185731e162be9ffa4d52d20d7509939e60e8"
   },
   {
     "id": "deepseek",
@@ -154,7 +164,9 @@
         "sha256": "cb9325b45fc4c585caa83c24f2f6985b7a872ec0546e4fe5af98456631d0c33c"
       }
     ],
-    "logo": "deepseek"
+    "logo": "deepseek",
+    "parameterCount": 748494684784,
+    "parameterSource": "https://huggingface.co/api/models/mrfakename/DeepSeek-V4.1-Flash-1017-GGUF/revision/1df54e7d1b1e442051ad393ce871870a929f243e"
   },
   {
     "id": "muse",
@@ -226,7 +238,9 @@
         "sha256": "5886fe256da3cb8588370de36754f73b844b22b8f3e6ecabf8f9ce85f510e20b"
       }
     ],
-    "logo": "muse"
+    "logo": "muse",
+    "parameterCount": 819991575808,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Muse-Spark-Open-816B-A42B-GGUF/revision/c00670568b6ce5e56a247f67091247984df2a01e"
   },
   {
     "id": "gemma3-1b",
@@ -243,7 +257,9 @@
         "bytes": 806058240,
         "sha256": "8ccc5cd1f1b3602548715ae25a66ed73fd5dc68a210412eea643eb20eb75a135"
       }
-    ]
+    ],
+    "parameterCount": 999885952,
+    "parameterSource": "https://huggingface.co/api/models/ggml-org/gemma-3-1b-it-GGUF/revision/f9c28bcd85737ffc5aef028638d3341d49869c27"
   },
   {
     "id": "llama32-3b",
@@ -260,7 +276,9 @@
         "bytes": 2019377600,
         "sha256": "6c99cc00ae910f6a532a80022cb4bc1939094527a089c29294b841c0bd87f74d"
       }
-    ]
+    ],
+    "parameterCount": 3212749888,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Llama-3.2-3B-Instruct-GGUF/revision/e7d0997e49c9cb00d88b4c1a6a16aa894b0bbc31"
   },
   {
     "id": "phi4-mini",
@@ -277,7 +295,9 @@
         "bytes": 2491874688,
         "sha256": "01999f17c39cc3074afae5e9c539bc82d45f2dd7faa3917c66cbef76fce8c0c2"
       }
-    ]
+    ],
+    "parameterCount": 3836021856,
+    "parameterSource": "https://huggingface.co/api/models/bartowski/microsoft_Phi-4-mini-instruct-GGUF/revision/7ff82c2aaa4dde30121698a973765f39be5288c0"
   },
   {
     "id": "mistral7b",
@@ -294,7 +314,9 @@
         "bytes": 4372812000,
         "sha256": "1270d22c0fbb3d092fb725d4d96c457b7b687a5f5a715abe1e818da303e562b6"
       }
-    ]
+    ],
+    "parameterCount": 7248023552,
+    "parameterSource": "https://huggingface.co/api/models/bartowski/Mistral-7B-Instruct-v0.3-GGUF/revision/61fd4167fff3ab01ee1cfe0da183fa27a944db48"
   },
   {
     "id": "qwen25-coder7b",
@@ -311,7 +333,9 @@
         "bytes": 4683073536,
         "sha256": "509287f78cb4d4cf6b3843734733b914b2c158e43e22a7f4bf5e963800894d3c"
       }
-    ]
+    ],
+    "parameterCount": 7615616512,
+    "parameterSource": "https://huggingface.co/api/models/Qwen/Qwen2.5-Coder-7B-Instruct-GGUF/revision/13fb94bfda8c8cf22497dc57b78f391a9acb426a"
   },
   {
     "id": "deepseek-r1-7b",
@@ -328,7 +352,9 @@
         "bytes": 4683073248,
         "sha256": "78272d8d32084548bd450394a560eb2d70de8232ab96a725769b1f9171235c1c"
       }
-    ]
+    ],
+    "parameterCount": 7615616512,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/DeepSeek-R1-Distill-Qwen-7B-GGUF/revision/097680e4eed7a83b3df6b0bb5e5134099cadf1b0"
   },
   {
     "id": "granite33-8b",
@@ -345,7 +371,9 @@
         "bytes": 4942873344,
         "sha256": "77bcee066a76dcdd10d0d123c87e32c8ec2c74e31b6ffd87ebee49c9ac215dca"
       }
-    ]
+    ],
+    "parameterCount": 8170864640,
+    "parameterSource": "https://huggingface.co/api/models/ibm-granite/granite-3.3-8b-instruct-GGUF/revision/e40e9dd739c7be00fa965c16ce167088190ce114"
   },
   {
     "id": "qwen3-8b",
@@ -362,7 +390,9 @@
         "bytes": 5027783488,
         "sha256": "d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785"
       }
-    ]
+    ],
+    "parameterCount": 8190735360,
+    "parameterSource": "https://huggingface.co/api/models/Qwen/Qwen3-8B-GGUF/revision/7c41481f57cb95916b40956ab2f0b139b296d974"
   },
   {
     "id": "huihui-qwen3-06b",
@@ -380,7 +410,9 @@
         "bytes": 396701280,
         "sha256": "c11db99f54750f60dae1c6a429a72055ff5d5a04684a06392075d8441354afba"
       }
-    ]
+    ],
+    "parameterCount": 596049920,
+    "parameterSource": "https://huggingface.co/api/models/mradermacher/Huihui-Qwen3-0.6B-abliterated-v2-GGUF/revision/a81ddae27343c9bfacfcd5e6252eb8b3ed41ed43"
   },
   {
     "id": "mlabonne-qwen3-17b",
@@ -398,7 +430,9 @@
         "bytes": 1107408832,
         "sha256": "bea197fd05bad4126cdfe3198b53e6458b731ba554d9bc33548d0259788a7ba8"
       }
-    ]
+    ],
+    "parameterCount": 1720574976,
+    "parameterSource": "https://huggingface.co/api/models/bartowski/mlabonne_Qwen3-1.7B-abliterated-GGUF/revision/fb7311cea48018c704b343c2ccabaa0cbc13f4f3"
   },
   {
     "id": "lexi-llama31-8b",
@@ -416,7 +450,9 @@
         "bytes": 4920734816,
         "sha256": "d89a4c524dad60769446823089f2870c76475e61ec842801229b93158a9dbb4a"
       }
-    ]
+    ],
+    "parameterCount": 8030261312,
+    "parameterSource": "https://huggingface.co/api/models/bartowski/Llama-3.1-8B-Lexi-Uncensored-GGUF/revision/4bf046e5f0e048ff60cfa1164a2c82432881ecbc"
   },
   {
     "id": "dolphin30-llama31-8b",
@@ -434,7 +470,9 @@
         "bytes": 4920749472,
         "sha256": "268390e07edd407ad93ea21a868b7ae995b5950e01cad0db9e1802ae5049d405"
       }
-    ]
+    ],
+    "parameterCount": 8030277696,
+    "parameterSource": "https://huggingface.co/api/models/bartowski/Dolphin3.0-Llama3.1-8B-GGUF/revision/a6274707ba8c5f12d4521eabbce1b318bb2f27f5"
   },
   {
     "id": "huihui-qwen3-14b",
@@ -452,7 +490,9 @@
         "bytes": 9001749568,
         "sha256": "d76889059a3bfab30bc565012a0184827ff2bdc10197f6babc24541b98451dbe"
       }
-    ]
+    ],
+    "parameterCount": 14768307200,
+    "parameterSource": "https://huggingface.co/api/models/bartowski/huihui-ai_Qwen3-14B-abliterated-GGUF/revision/623c0f3fc42a4699d4583fb16e022942c003d1b7"
   },
   {
     "id": "kimi-k31",
@@ -630,7 +670,9 @@
         "sha256": "25dc548b685093353a7380c08609c459be2d1b5d27900a13dbb150a4a3b8df58"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 2779661661792,
+    "parameterSource": "https://huggingface.co/api/models/DevQuasar/moonshotai.Kimi-K3.1-Pro-GGUF/revision/05ecce65bdbf1b84c01e8b33f2e35cd469575373"
   },
   {
     "id": "kimi-k3",
@@ -738,7 +780,9 @@
         "sha256": "0bbf968ab09e487d90dd3621e90c0463e756ac89fd349ddf60f3b5ac0c2c8e58"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 2779483135584,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Kimi-K3-GGUF/revision/a0836360ce58dfec088d966a97f2ddc8a606279b"
   },
   {
     "id": "kimi-k27-code",
@@ -791,7 +835,9 @@
         "sha256": "ba884a96a29677524c8f30f2b2418c4bcef0d9c52ca49b22ca13c8c9ef37cb5c"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 1026408232448,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Kimi-K2.7-Code-GGUF/revision/46352ca8dc32aa60f9754f5bd3fb778deeb9e430"
   },
   {
     "id": "kimi-k26",
@@ -844,7 +890,9 @@
         "sha256": "7e6303d24550673edf8a13d7698a1820f5a0f7cb220d17d83dffa409cc73d9d5"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 1026408232448,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Kimi-K2.6-GGUF/revision/47c7cab1e440dd9fcfc57c469e4737983408a6f2"
   },
   {
     "id": "kimi-k25",
@@ -897,7 +945,9 @@
         "sha256": "cac04413d800254e74f5d238e33cc17a914fe47d257cffb45e289c5799f6c243"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 1026408232448,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Kimi-K2.5-GGUF/revision/386fed8b054275941d6a495a9a7010fbf31b560d"
   },
   {
     "id": "kimi-k2-thinking",
@@ -950,7 +1000,9 @@
         "sha256": "0967698517f65a7e7c1a0231ceb7e5f1e3f39eaef1028849e80a28b355baad23"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 1026408232448,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Kimi-K2-Thinking-GGUF/revision/7e4f5d413a9bb469174b2cc9e47d457d16bc6702"
   },
   {
     "id": "kimi-k2-0905",
@@ -1003,7 +1055,9 @@
         "sha256": "89cdf4f25638ab6b0cf606237f80bbd819259e1017ad4c7a349759e398ef7440"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 1026408232448,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Kimi-K2-Instruct-0905-GGUF/revision/ca516d05c7621c0615db3fc7efa63c9617547363"
   },
   {
     "id": "kimi-k2",
@@ -1056,7 +1110,9 @@
         "sha256": "28a93946b17f0ee9fe6191e26fe805a36e0c0c329f73cc28b00d32cdfd8142eb"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 1026408232448,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Kimi-K2-Instruct-GGUF/revision/23bf90d8196ddfcb3328a6f60c99a9bdb5c1dadf"
   },
   {
     "id": "kimi-linear",
@@ -1074,7 +1130,9 @@
         "sha256": "a1a7d865370652221f937163f7e94c99e1f114861335ba4f8666606843f1620f"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 49122681728,
+    "parameterSource": "https://huggingface.co/api/models/bartowski/moonshotai_Kimi-Linear-48B-A3B-Instruct-GGUF/revision/228dbe476e5a02091624a19068f4c962caa8a1c5"
   },
   {
     "id": "kimi-dev",
@@ -1092,6 +1150,8 @@
         "sha256": "53f63e7a15d1253480b6c6daad113c9b11122e69f58cf0b36ae06a6474779be3"
       }
     ],
-    "logo": "kimi"
+    "logo": "kimi",
+    "parameterCount": 72706203648,
+    "parameterSource": "https://huggingface.co/api/models/unsloth/Kimi-Dev-72B-GGUF/revision/7d0a1f3ffeae22372b9d5959b5d79199bbba71b6"
   }
 ]
