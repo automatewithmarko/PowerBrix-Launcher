@@ -11,6 +11,7 @@ let engineMenuOpen = false;
 let modelActionBusy = false;
 let liveMetrics = null;
 let regeneratingIndex = null;
+let editingIndex = null,editingDraft = '';
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -69,7 +70,7 @@ function clearCurrentChat() {
   if (chatBusy()) return;
   drafts.delete(draftKey());
   pendingFiles = [];
-  turns = [];
+  turns = [];editingIndex=null;editingDraft='';
   modelMenuOpen = false;
   skillsMenuOpen = false;
   localStorage.setItem('powerbrix-chat','[]');
@@ -121,7 +122,7 @@ function openConversation(id) {
   const chat = conversations.find(item => item.id === id);
   if (id && !chat) return;
   currentChat = chat?.id ?? null;
-  turns = (chat?.turns ?? []).map(normalizeReasoning);
+  turns = (chat?.turns ?? []).map(normalizeReasoning);editingIndex=null;editingDraft='';
   if (!chat) drafts.delete('draft');
   pendingFiles = [];
   modelMenuOpen = false;
@@ -414,6 +415,9 @@ function chatArea(){
   const stream='<div class="chat-turn assistant streaming" id="stream"><div class="message assistant"><span>'+esc(status)+'</span></div></div>';
   const messages=turns.map(normalizeReasoning).map((turn,index)=>{
     if(thinking&&regeneratingIndex===index)return stream;
+    if(turn.role==='user'&&editingIndex===index)return '<form class="chat-turn user is-editing" data-message-edit="'+index+'">'
+      +'<div class="message user editing-message">'+fileChips(turn.attachments,false)+'<textarea data-message-editor aria-label="Edit sent message" maxlength="12000" rows="3">'+esc(editingDraft)+'</textarea></div>'
+      +'<div class="message-actions">'+button('cancel-message-edit','Cancel','message-edit-cancel')+'<button type="submit" class="message-action edit-message-send" aria-label="Resend edited message" title="Resend edited message" '+(!editingDraft.trim()?'disabled':'')+'>'+icons.send+'</button></div></form>';
     return '<div class="chat-turn '+turn.role+'">'
       +(turn.role==='assistant'?reasoningPanel(turn.reasoning,turn.reasoningOpen,index):'')
       +'<div class="message '+turn.role+'">'+fileChips(turn.attachments,false)
@@ -421,6 +425,7 @@ function chatArea(){
       +renderSources(turn.sources)+responseNote(turn)
       +(turn.shortened?'<small class="file-note">Used the most recent context and relevant excerpts.</small>':'')+'</div>'
       +'<div class="message-actions">'+button('copy-message:'+index,icons.copy,'message-action','aria-label="Copy message" title="Copy message"')
+      +(turn.role==='user'?button('edit-message:'+index,icons.edit,'message-action','aria-label="Edit message" title="Edit message" '+(chatBusy()?'disabled':'')):'')
       +button('regenerate:'+index,icons.restart,'message-action','aria-label="Regenerate response" title="Regenerate response" '+(chatBusy()?'disabled':''))+'</div></div>';
   }).join('');
   const welcome='<div class="chat-welcome"><span class="tile">'+icons.chat+'</span><h1>What Can I <em>Help With?</em></h1><p>Your models. Your machine. Your conversation.</p></div>';
@@ -489,6 +494,8 @@ function workspace(){
   return sidebar()+'<main class="workspace listing"><header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>'+ (local?'My Models':'Discover Models')+'</h2></div><div class="listing-tools">'+(demo?button('preview-wait','Preview Tetris','btn secondary compact'):'')+button('scan',state.scan?'Analyzing…':'Analyze System','btn secondary compact',state.scan||busy||state.pull||!state.platformSupported||state.platform!==state.actual?'disabled':'')+'</div></header><div class="listing-content"><h1>'+(local?'Your <em>Local Models.</em>':'Find Your <em>Next Model.</em>')+'</h1><p>'+(local?'Models you have downloaded on the selected drive.':'Compare storage requirements and estimated performance, then pull a model to use it locally.')+'</p>'+(state.scan?'<p class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></p>':'')+(local?'':machine()+analysisNotice())+catalogPanel(state.models.filter(model=>local?model.local:model.runtime!=='fixture'))+'</div></main>';
 }
 function render(){
+  const editFocused=document.activeElement?.matches('[data-message-editor]');
+  const editSelection=editFocused?[document.activeElement.selectionStart,document.activeElement.selectionEnd]:null;
   const focused=document.activeElement?.id==='prompt';
   const searchFocused=document.activeElement?.id==='plugin-search';
   const scroll=document.querySelector('#chat-scroll')?.scrollTop;
@@ -515,6 +522,7 @@ function render(){
     updatePromptHighlight(prompt);
   }
   if(focused)document.querySelector('#prompt')?.focus();
+  if(editFocused){const editor=root.querySelector('[data-message-editor]');if(editor){editor.focus();editor.setSelectionRange(...editSelection);}}
   if(samePage && scroll && document.querySelector('#chat-scroll')) document.querySelector('#chat-scroll').scrollTop=scroll;
   if (listingScroll !== undefined) root.querySelector('.workspace.listing').scrollTop = listingScroll;
   root.scrollTop = setupScroll;
@@ -755,6 +763,12 @@ root.addEventListener('click',async event=>{
     if(event.detail===0) root.querySelector(`.sidebar [data-action="${action}"]`)?.focus();
     return;
   }
+  if(action==='edit-message'){
+    const index=Number(value);if(chatBusy()||turns[index]?.role!=='user')return;
+    editingIndex=index;editingDraft=(turns[index].webSearch?'/web-search ':'')+turns[index].content;render();
+    const editor=root.querySelector('[data-message-editor]');editor?.focus();editor?.setSelectionRange(editor.value.length,editor.value.length);return;
+  }
+  if(action==='cancel-message-edit'){cancelMessageEdit();return;}
   if(action==='copy-message'){
     const turn=normalizeReasoning(turns[Number(value)]);if(!turn)return;
     try{await api.copyText(turn.content||'');el.innerHTML=icons.check;el.title='Copied';setTimeout(()=>{if(el.isConnected){el.innerHTML=icons.copy;el.title='Copy message';}},1600);}catch(error){tell(error);}
@@ -802,6 +816,7 @@ root.addEventListener('click',async event=>{
   if(['pause','stop','folder'].includes(action))await perform(action);
 });
 root.addEventListener('input',event=>{
+  if(event.target.matches('[data-message-editor]')){editingDraft=event.target.value;event.target.closest('form').querySelector('[type=submit]').disabled=!editingDraft.trim();return;}
   if(event.target.id==='prompt'){
     drafts.set(draftKey(),event.target.value);
     const send = document.querySelector('#composer .send');
@@ -823,6 +838,11 @@ window.addEventListener('resize',()=>{
   if(input)updatePromptHighlight(input);
 });
 root.addEventListener('keydown',event=>{
+  if(event.target.matches('[data-message-editor]')){
+    if(event.key==='Escape'){event.preventDefault();cancelMessageEdit();}
+    if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();event.target.closest('form').requestSubmit();}
+    return;
+  }
   const commands = document.querySelector('#prompt-commands:not([hidden])');
   if (commands && !event.isComposing) {
     if (event.key === 'Escape') {
@@ -850,6 +870,7 @@ root.addEventListener('keydown',event=>{
   if(event.target.id==='prompt'&&event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();document.querySelector('#composer')?.requestSubmit();}
 });
 root.addEventListener('submit',async event=>{
+  if(event.target.hasAttribute('data-message-edit')){event.preventDefault();await resendEditedMessage(Number(event.target.dataset.messageEdit));return;}
   if (event.target.id === 'history-form') {
     event.preventDefault();
     const dialog = event.target.closest('dialog');
@@ -889,7 +910,7 @@ root.addEventListener('submit',async event=>{
   if (useWebSearch && !query) {tell('Type a question after /web-search.');return;}
   const attachments=pendingFiles;
   const content=query||'Summarize the attached files.';
-  drafts.delete(draftKey());pendingFiles=[];modelMenuOpen=false;skillsMenuOpen=false;
+  drafts.delete(draftKey());pendingFiles=[];modelMenuOpen=false;skillsMenuOpen=false;editingIndex=null;editingDraft='';
   turns.push({role:'user',content,attachments,webSearch:useWebSearch});thinking=true;status=useWebSearch?'Searching the web…':'Starting local model…';answer='';reasoning='';liveMetrics=null;streamReasoningOpen=false;render();
   const chatScroll=document.querySelector('#chat-scroll');
   if(chatScroll)chatScroll.scrollTop=chatScroll.scrollHeight;
@@ -898,6 +919,7 @@ root.addEventListener('submit',async event=>{
 async function generateResponse(active,promptIndex,useWebSearch,onEmpty,replaceIndex=null){
   const history=turns.slice(0,promptIndex+1).map(normalizeReasoning).filter(turn=>turn.content?.trim()).slice(-35).map(turn=>({role:turn.role,content:turn.content,
     files:(turn.attachments||[]).map(file=>file.id)}));
+  let accepted=false;
   const data=await perform('chat',active.id,history,useWebSearch);
   if(replaceIndex!==null&&(!data||data.stopped)){
     if(liveMetrics)(turns[replaceIndex].previousMetrics??=[]).push(liveMetrics);
@@ -911,10 +933,12 @@ async function generateResponse(active,promptIndex,useWebSearch,onEmpty,replaceI
       reply.previousMetrics=[...(previous.previousMetrics||[]),...(previous.metrics?[previous.metrics]:[])];
       turns[replaceIndex]=reply;
     }else turns.push(reply);
+    accepted=true;
   }else if(!data?.stopped)onEmpty?.();
   thinking=false;regeneratingIndex=null;saveConversation();render();
   const area=document.querySelector('#chat-scroll');if(area&&replaceIndex===null)area.scrollTop=area.scrollHeight;
   document.querySelector('#prompt')?.focus();
+  return accepted;
 }
 async function regenerateResponse(index){
   if(chatBusy()||!Number.isInteger(index)||!turns[index])return;
@@ -924,9 +948,35 @@ async function regenerateResponse(index){
   if(promptIndex<0)return;
   const replaceIndex=turns[promptIndex+1]?.role==='assistant'?promptIndex+1:null;
   if(replaceIndex===null&&promptIndex!==turns.length-1){tell('Regenerate the response below this prompt.');return;}
+  editingIndex=null;editingDraft='';
   thinking=true;regeneratingIndex=replaceIndex;status='Regenerating response…';answer='';reasoning='';liveMetrics=null;streamReasoningOpen=false;
   render();
   await generateResponse(active,promptIndex,Boolean(turns[promptIndex].webSearch),null,replaceIndex);
+}
+
+function cancelMessageEdit(){
+  const index=editingIndex;editingIndex=null;editingDraft='';render();
+  root.querySelector('[data-action="edit-message:'+index+'"]')?.focus();
+}
+async function resendEditedMessage(index){
+  if(chatBusy()||editingIndex!==index||turns[index]?.role!=='user')return;
+  const typed=editingDraft.trim();if(!typed)return;
+  const active=activeChatModel();if(!active){tell('Select a downloaded model first.');return;}
+  const useWebSearch=webCommand.test(typed);
+  if(useWebSearch&&!hasPlugin('internet-search')){tell('Install Internet Search to resend a web search.');return;}
+  const content=useWebSearch?typed.replace(webCommand,'$1').trim():typed;
+  if(!content){tell('Type a question after /web-search.');return;}
+  const previous=turns[index];
+  const replaceIndex=turns[index+1]?.role==='assistant'?index+1:null;
+  if(replaceIndex===null&&index!==turns.length-1){tell('This message has no response to replace.');return;}
+  turns[index]={...previous,content,webSearch:useWebSearch};
+  editingIndex=null;editingDraft='';thinking=true;regeneratingIndex=replaceIndex;
+  status='Responding to your edited message…';answer='';reasoning='';liveMetrics=null;streamReasoningOpen=false;render();
+  const accepted=await generateResponse(active,index,useWebSearch,null,replaceIndex);
+  if(!accepted){
+    turns[index]=previous;editingIndex=index;editingDraft=typed;saveConversation();render();
+    root.querySelector('[data-message-editor]')?.focus();
+  }
 }
 
 api.onEngine(status=>{
