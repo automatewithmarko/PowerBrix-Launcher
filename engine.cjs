@@ -6,6 +6,7 @@ const path = require('node:path');
 const net = require('node:net');
 const {downloadFile} = require('./downloads.cjs');
 const {readMetrics}=require('./renderer/chat-metrics.js');
+const {parseReasoning}=require('./renderer/reasoning.js');
 
 const release = 'inferssd-261109.216.02ed6a8-';
 const releases = {
@@ -414,9 +415,9 @@ class LocalEngine {
       throw Error(data?.error?.message || 'The local engine returned HTTP '+response.status+'.');
     }
     const reader=response.body.pipeThrough(new TextDecoderStream());
-    let buffer='', answer='', reasoning='', finishReason=null, done=false, usage={},timings={};
+    let buffer='', answer='', reasoning='', finishReason=null, done=false, usage={},timings={},rawAnswer='',explicitReasoning='';
     const metrics=()=>readMetrics(usage,timings,this.current?.contextTokens);
-    const result=()=>({answer,reasoning,finishReason:finishReason || 'interrupted',...(metrics()?{metrics:metrics()}:{})});
+    const result=()=>({...parseReasoning(rawAnswer,explicitReasoning,true),finishReason:finishReason || 'interrupted',...(metrics()?{metrics:metrics()}:{})});
     const consume = line => {
       if (!line.startsWith('data:')) return;
       const data=line.slice(5).trim();
@@ -430,8 +431,9 @@ class LocalEngine {
       const choice=payload.choices?.[0];
       const delta=choice?.delta;
       const thought=delta?.reasoning_content ?? delta?.reasoning;
-      if (typeof thought==='string') reasoning+=thought;
-      if (typeof delta?.content==='string') answer+=delta.content;
+      if (typeof thought==='string') explicitReasoning+=thought;
+      if (typeof delta?.content==='string') rawAnswer+=delta.content;
+      ({answer,reasoning}=parseReasoning(rawAnswer,explicitReasoning));
       if (choice?.finish_reason) finishReason=choice.finish_reason;
       if (thought || delta?.content || payload.usage || payload.timings || payload.prompt_progress) onDelta({reasoning,answer,...(metrics()?{metrics:metrics()}:{})});
     };

@@ -25,6 +25,7 @@ const draftKey = () => currentChat ?? 'draft';
 let turns=[];
 try { turns=JSON.parse(localStorage.getItem('powerbrix-chat')||'[]'); } catch {}
 if(!Array.isArray(turns))turns=[];
+turns=turns.map(normalizeReasoning);
 const icon=(d)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+d+'"/></svg>';
 const icons={
   paperclip:icon('M9 13l6-6a2 2 0 0 1 3 3l-8 8a4 4 0 0 1-6-6l9-9a5 5 0 0 1 7 7l-8 8'),
@@ -87,7 +88,7 @@ function readHistory() {
   }
   const active = conversations.find(chat => chat.id === localStorage.getItem('powerbrix-active-chat'));
   currentChat = active?.id ?? null;
-  turns = active?.turns ?? [];
+  turns = (active?.turns ?? []).map(normalizeReasoning);
 }
 
 function storeHistory() {
@@ -96,6 +97,7 @@ function storeHistory() {
 }
 
 function saveConversation() {
+  turns=turns.map(normalizeReasoning);
   localStorage.setItem('powerbrix-chat',JSON.stringify(turns.slice(-100)));
   if (!historyOn() || !turns.length) return;
   const old = conversations.find(chat => chat.id === currentChat);
@@ -115,7 +117,7 @@ function openConversation(id) {
   const chat = conversations.find(item => item.id === id);
   if (id && !chat) return;
   currentChat = chat?.id ?? null;
-  turns = chat?.turns ?? [];
+  turns = (chat?.turns ?? []).map(normalizeReasoning);
   if (!chat) drafts.delete('draft');
   pendingFiles = [];
   modelMenuOpen = false;
@@ -355,6 +357,19 @@ function renderSources(sources) {
     '<li>'+button('open-source',esc(source.title),'web-source','data-source-url="'+esc(source.url)+'"')+'</li>').join('')+'</ol></div>';
 }
 
+function normalizeReasoning(turn){
+  if(turn?.role!=='assistant')return turn;
+  const parsed=window.PowerBrixReasoning.parseReasoning(turn.content||'',turn.reasoning||'',true);
+  return {...turn,content:parsed.answer,reasoning:parsed.reasoning};
+}
+function contextMeter(percent){
+  const value=percent===null?0:Math.max(0,Math.min(100,percent));
+  const angle=value/100*Math.PI*2;
+  const x=(8+6.5*Math.sin(angle)).toFixed(3),y=(8-6.5*Math.cos(angle)).toFixed(3);
+  const fill=value>=100?'<circle class="context-fill" cx="8" cy="8" r="6.5"/>':value>0?'<path class="context-fill" d="M8 8 L8 1.5 A6.5 6.5 0 '+(value>50?1:0)+' 1 '+x+' '+y+' Z"/>':'';
+  return '<svg class="context-meter" viewBox="0 0 16 16" aria-hidden="true">'+fill+'<circle class="context-track" cx="8" cy="8" r="6.5"/></svg>';
+}
+
 function reasoningPanel(text, open, key) {
   if (!text) return '';
   return '<details class="model-reasoning" data-reasoning-turn="'+esc(key)+'"'+(open?' open':'')+'><summary>Model reasoning</summary><div class="reasoning-text">'+esc(text)+'</div></details>';
@@ -382,7 +397,7 @@ function chatStats(){
   return '<span class="chat-stat" title="Average generation speed in this chat, based on generated tokens and engine decode time. Includes thinking; excludes model loading and prompt processing.">'
     +icon('M13 2 4 14h7l-1 8 10-12h-7l1-8Z')+'<span>'+rate+'<small> average</small></span></span>'
     +'<span class="chat-stat" title="'+(percent===null?'Context usage will appear when the model reports token counts.':used.toLocaleString()+' / '+capacity.toLocaleString()+' tokens in the latest request and response. Older conversation may be trimmed to fit.')+'">'
-    +icon('M4 17a9 9 0 1 1 16 0M12 14l4-5M8 19h8')+'<span>'+context+'</span></span>'
+    +contextMeter(percent)+'<span>'+context+'</span></span>'
     +'<span class="chat-stat" title="Total recorded AI tokens in this chat, including thinking. A plus means older replies have no recorded counts.">'+icons.models+'<span>'+total+'<small> tokens generated</small></span></span>';
 }
 function updateChatStats(){
@@ -392,7 +407,7 @@ function updateChatStats(){
 
 function chatArea(){
   const active=activeChatModel();
-  const messages=turns.map((turn,index)=>'<div class="message '+turn.role+'">'
+  const messages=turns.map(normalizeReasoning).map((turn,index)=>'<div class="message '+turn.role+'">'
     +(turn.role==='assistant'?reasoningPanel(turn.reasoning,turn.reasoningOpen,index):'')
     +fileChips(turn.attachments,false)+(turn.webSearch?'<span class="message-web-command">/web-search</span> ':'')+esc(turn.content)
     +renderSources(turn.sources)+responseNote(turn)
@@ -860,7 +875,7 @@ root.addEventListener('submit',async event=>{
   turns.push({role:'user',content,attachments,webSearch:useWebSearch});thinking=true;status=useWebSearch?'Searching the web…':'Starting local model…';answer='';reasoning='';liveMetrics=null;streamReasoningOpen=false;render();
   const chatScroll=document.querySelector('#chat-scroll');
   if(chatScroll)chatScroll.scrollTop=chatScroll.scrollHeight;
-  const history=turns.filter(turn=>turn.content?.trim()).slice(-35).map(turn=>({role:turn.role,content:turn.content,
+  const history=turns.map(normalizeReasoning).filter(turn=>turn.content?.trim()).slice(-35).map(turn=>({role:turn.role,content:turn.content,
     files:(turn.attachments||[]).map(file=>file.id)}));
   const data=await perform('chat',active.id,history,useWebSearch);
   if(data?.answer||answer||data?.reasoning||reasoning)turns.push({

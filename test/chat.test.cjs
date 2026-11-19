@@ -64,3 +64,10 @@ test('live engine metadata reaches the UI, including cached prompt tokens and fi
   assert.equal(result.metrics.generationMs,150);assert.equal(result.metrics.contextCapacity,8192);
   assert.equal(updates[1].metrics.promptTokens,200);assert.equal(requests[0].stream_options.include_usage,true);
 });
+test('raw Qwen think tags split across streamed content are extracted before reaching the UI',async t=>{
+  const chunks=['<th','ink>Consider gravity.','</thi','nk>\n\nGravity attracts masses.'];
+  const {engine}=await chatServer(t,chunks.map(content=>event({delta:{content}})).join('')+event({delta:{},finish_reason:'stop'})+'data: [DONE]\n\n');
+  const updates=[];const result=await engine.chat([{role:'user',content:'Explain'}],AbortSignal.timeout(3000),delta=>updates.push(delta));
+  assert.equal(result.answer,'Gravity attracts masses.');assert.equal(result.reasoning,'Consider gravity.');
+  for(const update of updates){assert.doesNotMatch(update.answer,/<\/?think|<th/i);assert.doesNotMatch(update.reasoning,/<\/?thi/i);}
+});

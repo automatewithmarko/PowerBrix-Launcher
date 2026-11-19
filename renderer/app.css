@@ -475,3 +475,4 @@ body{display:grid;grid-template-rows:auto minmax(0,1fr)}
 .activity-board-wrap{justify-self:center;}
 .chat-stats{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px 22px;margin:10px 0 0;color:#c4b3d6;font-size:10px;line-height:1.5;font-variant-numeric:tabular-nums}.chat-stats[hidden]{display:none}.chat-stat{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}.chat-stat>svg{width:13px;height:13px;color:#ae91cc;flex:none}.chat-stat small{font-size:inherit;color:#9e8caf}
 @media(max-width:760px){.chat-stats{gap:6px 12px;font-size:9px}}
+.context-meter{width:14px;height:14px;flex:none}.context-track{fill:none;stroke:#b899d2;stroke-width:1}.context-fill{fill:#cfaff1;stroke:none}
