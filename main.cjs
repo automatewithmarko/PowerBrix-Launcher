@@ -166,9 +166,13 @@ app.whenReady().then(async()=>{
     if(!settings.plugins.includes('projects'))throw Error('Install Projects first.');
     if(operation==='list')return projects.list();
     if(operation==='get')return projects.get(input.id);
-    if(operation==='chooseFolder'){const selection=await dialog.showOpenDialog(window,{title:'Choose a project folder',properties:['openDirectory','createDirectory']});if(selection.canceled)return null;const token=randomUUID();projectFolders.set(token,selection.filePaths[0]);return {token,path:selection.filePaths[0]};}
-    if(operation==='create'){const folder=projectFolders.get(input.folderToken);if(!folder)throw Error('Choose a folder for this project.');const project=await projects.create(input.name,folder);projectFolders.delete(input.folderToken);return project;}
-    if(operation==='update')return projects.update(input.id,input);
+    if(operation==='chooseFolder'){const selection=await dialog.showOpenDialog(window,{title:'Add project folders',properties:['openDirectory','multiSelections','createDirectory']});if(selection.canceled)return null;return {folders:selection.filePaths.map(folder=>{const token=randomUUID();projectFolders.set(token,folder);return {token,path:folder};})};}
+    if(operation==='create'){const tokens=input.folderTokens||[input.folderToken];const folders=tokens.map(token=>projectFolders.get(token));if(!folders.length||folders.some(folder=>!folder))throw Error('Choose folders for this project.');const project=await projects.create(input.name,folders);tokens.forEach(token=>projectFolders.delete(token));return project;}
+    if(operation==='update'){
+      const changes={name:input.name,instructions:input.instructions};
+      if(input.folderTokens!==undefined||input.retainedFolders!==undefined){const current=await projects.get(input.id);const retained=input.retainedFolders||[];const added=(input.folderTokens||[]).map(token=>projectFolders.get(token));if(!Array.isArray(retained)||retained.some(folder=>!current.sourceFolders.includes(folder))||added.some(folder=>!folder))throw Error('Choose valid source folders.');changes.sourceFolders=[...retained,...added];}
+      const project=await projects.update(input.id,changes);(input.folderTokens||[]).forEach(token=>projectFolders.delete(token));return project;
+    }
     if(operation==='saveChat')return projects.saveChat(input.id,input.chat);
     if(operation==='removeFile')return projects.removeFile(input.id,input.fileId);
     if(operation==='deleteChat')return projects.deleteChat(input.id,input.chatId);
