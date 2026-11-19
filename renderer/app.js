@@ -14,6 +14,8 @@ let regeneratingIndex = null;
 let editingIndex = null,editingDraft = '';
 let apiInfo=null,apiModelId=null,apiModelOpen=false,apiLoading=false,apiRequestFormat='curl';
 let apiCodeTransition=0;
+let apiKeyRevealed=false,apiCodeRevealed=false;
+let catalogFilter={provider:'all',parameters:'all',sort:'speed'},catalogMenu=null;
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -54,6 +56,7 @@ const icons={
   play:icon('M8 5v14l11-7-11-7Z'),
   copy:icon('M9 8h11v13H9V8ZM5 16H3V3h11v2'),
   api:icon('M8 5 2 12l6 7m8-14 6 7-6 7M14 3l-4 18'),
+  info:icon('M12 11v6m0-10v.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z'),
   restart:icon('M20 7v5h-5m5-5a8 8 0 1 0 1 8'),
   check:icon('M5 12l4 4L19 6'),
 };
@@ -154,7 +157,7 @@ function modelRows(rows){
     const action=model.local
       ? '<div class="model-actions">'+button('use:'+model.id,'Use in Chat','btn quiet compact')+(page==='models'?button('uninstall:'+model.id,icons.trash+'<span>Uninstall</span>','btn quiet compact uninstall-model',thinking||modelActionBusy||state.scan||state.pull?'disabled':''):'')+'</div>'
       : download ? button('pause','Pause','btn quiet compact')
-      : button('pull:'+model.id,model.resumed?'Resume':'Pull','btn quiet compact',!model.pullable||state.pull||busy||state.scan?'disabled':'');
+      : button('pull:'+model.id,window.PowerBrixCatalog.downloadLabel(model),'btn quiet compact',!model.pullable||state.pull||busy||state.scan?'disabled':'');
     return '<article class="model-row" data-model-id="'+esc(model.id)+'"><span class="tile model-mark" aria-hidden="true">'+modelLogo(model)+'</span><div class="model-body"><h3>'+esc(model.name)+variant+'</h3><p>'+[model.quantization,model.bytes?gb(model.bytes):null,model.runtime==='ssd'?'SSD streaming':model.runtime==='mapped'?'CPU / SSD mapping':model.runtime==='fixture'?'Fixture':'Memory resident'].filter(Boolean).map(esc).join(' <span>·</span> ')+'</p><small data-download-status>'+esc(download?'Downloading · '+percent+'% · File '+download.file+'/'+download.files:model.fit||'Installed')+'</small>'+(download?'<progress max="100" value="'+percent+'" aria-label="Download progress"></progress>':'')+'</div><div class="rate '+rateClass+'" title="'+esc(model.detail||'')+'">'+(model.speed!=null?'<strong>'+speed(model.speed)+' <span>TOK/S</span></strong><small>'+esc(model.source)+'</small>':model.local?'':'<small>Speed unavailable</small>')+'</div>'+action+'</article>';
   }).join('');
 }
@@ -183,9 +186,23 @@ function onboarding(){
   if(!state.report?.machine)return '<main class="setup welcome"><div class="brand">'+svgBrand+'</div><section>'+systems()+'<h1>Setting Up For <em>'+esc(osLabels[state.platform])+'</em></h1><p>Find out which AI models you can run on this computer, how fast they might respond, and what you can do with them.</p><div class="setup-actions">'+button('scan',state.scan?'Analyzing system…':'Analyze System '+icons.arrow,'btn primary',busy||state.scan||state.platform!==state.actual||!state.platformSupported?'disabled':'')+'<div class="platform">'+button('toggle-platform','Change device','btn secondary','aria-expanded="'+platformOpen+'"')+(platformOpen?'<div class="options">'+['mac','windows'].map(key=>button('platform:'+key,osLabels[key],'btn quiet')).join('')+'</div>':'')+'</div></div>'+ (state.scan?'<div class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></div>':state.platform!==state.actual?'<p class="scan-note">This computer reports '+esc(osLabels[state.actual])+'. Switch back to run the native scan.</p>':!state.platformSupported?'<p class="scan-note">Native scanning requires an Apple Silicon Mac or Windows x64 PC.</p>':'<p class="scan-note">The scan runs on this device. No model is downloaded until you choose one.</p>')+'</section></main>';
   return '<main class="setup results"><div class="setup-header"><div class="brand">'+svgBrand+'</div>'+(homeReady?button('home','Go to Home '+icons.arrow,'textbtn'):'')+'</div>'+systems()+'<h1>See What Your <em>Machine Can Run.</em></h1><p>Choose a model to pull. Speeds estimate text generation on this machine.</p>'+(state.scan?'<div class="scan-note" role="status"><i class="spinner"></i><span id="scan-status">'+esc(state.scan)+'</span></div>':'')+machine()+analysisNotice()+catalogPanel(state.models)+'<footer>'+(homeReady?button('home','Go to Home '+icons.arrow,'btn primary'):'')+'</footer></main>';
 }
-function catalogPanel(rows){
-  return '<section class="catalog"><header><div><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+button('folder','Change storage','btn secondary compact',state.pull||busy?'disabled':'')+'</header>'+modelRows(rows)+'<footer>Estimates vary with context and hardware. SSD streaming can run models larger than RAM, provided they fit on your drive.</footer></section>';
+function catalogControls(rows){
+  const providers=[...new Set(rows.map(model=>model.vendor).filter(Boolean))].sort();
+  const sizes=[...new Set(rows.map(window.PowerBrixCatalog.sizeLabel))].sort((a,b)=>{if(a==='Not listed')return 1;if(b==='Not listed')return -1;return parseFloat(a.replace(/^E/,''))-parseFloat(b.replace(/^E/,''));});
+  const menus=[['provider','Provider',[['all','All providers'],...providers.map(value=>[value,value])]],['parameters','Parameter size',[['all','All sizes'],...sizes.map(value=>[value,value])]],['sort','Sort',[['speed','Speed: High to low'],['memory-asc','Memory: Low to high'],['memory-desc','Memory: High to low']]]];
+  return '<div class="catalog-controls">'+menus.map(([key,label,options])=>'<div class="catalog-filter"><span>'+label+'</span>'
+    +button('catalog-menu:'+key,esc(options.find(([value])=>value===catalogFilter[key])?.[1]||label)+icons.chevron,'catalog-filter-toggle','aria-haspopup="listbox" aria-expanded="'+(catalogMenu===key)+'"'+(key==='sort'?' title="Memory sorting uses model weight size in GB, not minimum RAM. SSD streaming models can use less RAM."':''))
+    +'<div class="catalog-filter-options" role="listbox" aria-label="'+label+'"'+(catalogMenu===key?'':' hidden')+'>'+options.map(([value,text])=>button('catalog-filter:'+key,esc(text),'','data-filter-value="'+esc(value)+'" role="option" aria-selected="'+(catalogFilter[key]===value)+'"')).join('')+'</div></div>').join('')+'</div>';
 }
+function catalogPanel(rows){
+  const browsing=page!=='models';
+  const filtered=browsing?window.PowerBrixCatalog.filterModels(rows,catalogFilter):rows;
+  return '<section class="catalog"><header><div><h2>Models for this device</h2><p>'+gb(state.free)+' available for downloads</p></div>'+button('folder','Change storage','btn secondary compact',state.pull||busy?'disabled':'')+'</header>'
+    +(browsing?catalogControls(rows):'')
+    +(filtered.length?modelRows(filtered):browsing?'<div class="catalog-no-results"><h3>No matching models</h3><p>Try another provider or parameter size.</p>'+button('catalog-reset','Reset filters','btn secondary compact')+'</div>':modelRows(filtered))
+    +'<footer>Estimates vary with context and hardware. SSD streaming can run models larger than RAM, provided they fit on your drive. Memory sorting uses model weight size, not minimum RAM.</footer></section>';
+}
+
 const nav=[['chat','AI Chat'],['plugins','Plugins'],['models','My Models'],['discover','Discover Models']];
 const navItems=()=>hasPlugin('api')?[...nav,['api','API']]:nav;
 const engineLabels={stopped:'Engine Stopped',loading:'Model loading',running:'Engine Running'};
@@ -488,11 +505,12 @@ async function loadApiConfiguration(){
   try{apiInfo=await api.apiConfiguration();}catch(error){apiInfo={running:false,error:error.message};}
   finally{apiLoading=false;if(page==='api')render();}
 }
-function apiExamples(){
+function maskedApiKey(){return 'PBX_'+ '*'.repeat(24);}
+function apiExamples(reveal=true){
   const models=state.models.filter(model=>model.local&&model.runtime!=='fixture');
   const model=models.find(model=>model.id===apiModelId)||models[0];
   const base=apiInfo?.baseUrl||'http://127.0.0.1:38473/v1';
-  const key=apiInfo?.key||'YOUR_API_KEY';
+  const key=apiInfo?.key?(reveal?apiInfo.key:maskedApiKey()):'YOUR_API_KEY';
   const body=JSON.stringify({model:model?.id||'INSTALLED_MODEL_ID',messages:[{role:'user',content:'Explain how local AI can help my business.'}],stream:false},null,2);
   const url=new URL(base+'/chat/completions');
   const curl=['curl '+url.href,'  -H "Authorization: Bearer '+key+'"','  -H "Content-Type: application/json"',"  -d '"+body+"'"].join(' '+String.fromCharCode(92)+'\n');
@@ -527,8 +545,8 @@ async function updateApiRequestContent(){
   panel.getAnimations().forEach(animation=>animation.cancel());body.getAnimations().forEach(animation=>animation.cancel());
   if(!reduced){await panel.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(-3px)'}],{duration:90,easing:'ease-out',fill:'forwards'}).finished.catch(()=>{});}
   if(transition!==apiCodeTransition||!panel.isConnected)return;
-  const examples=apiExamples();panel.querySelector('code').textContent=examples[apiRequestFormat];panel.setAttribute('aria-labelledby','api-format-'+apiRequestFormat);
-  const copy=root.querySelector('.api-code header .message-action');if(copy){copy.dataset.action='copy-api:'+apiRequestFormat;copy.setAttribute('aria-label','Copy '+(apiRequestFormat==='curl'?'cURL':'HTTP')+' request');}
+  const examples=apiExamples(apiCodeRevealed);panel.querySelector('code').textContent=examples[apiRequestFormat];panel.setAttribute('aria-labelledby','api-format-'+apiRequestFormat);
+  const copy=root.querySelector('.api-code [data-action^="copy-api:"]');if(copy){copy.dataset.action='copy-api:'+apiRequestFormat;copy.setAttribute('aria-label','Copy '+(apiRequestFormat==='curl'?'cURL':'HTTP')+' request');}
   const height=body.getBoundingClientRect().height;
   panel.getAnimations().forEach(animation=>animation.cancel());
   if(!reduced){
@@ -538,14 +556,15 @@ async function updateApiRequestContent(){
 }
 
 function apiPage(){
-  const {model,models,curl,http}=apiExamples();
+  const {model,models,curl,http}=apiExamples(apiCodeRevealed);
   const code=()=>'<section class="api-code"><header><div class="api-request-tabs" data-format="'+apiRequestFormat+'" role="tablist" aria-label="Request format">'
     +['curl','http'].map(format=>button('api-format:'+format,format==='curl'?'cURL':'HTTP','api-request-tab',
       'role="tab" id="api-format-'+format+'" aria-controls="api-request-panel" aria-selected="'+(apiRequestFormat===format)+'" tabindex="'+(apiRequestFormat===format?0:-1)+'"')).join('')
-    +'</div>'+button('copy-api:'+apiRequestFormat,icons.copy,'message-action','aria-label="Copy '+(apiRequestFormat==='curl'?'cURL':'HTTP')+' request" title="Copy request"')+'</header>'
+    +'</div><div class="api-code-actions">'+button('reveal-api-code',icons.info,'message-action','aria-label="'+(apiCodeRevealed?'Hide':'Reveal')+' API key in request" title="'+(apiCodeRevealed?'Hide':'Reveal')+' API key" aria-pressed="'+apiCodeRevealed+'"')+button('copy-api:'+apiRequestFormat,icons.copy,'message-action','aria-label="Copy '+(apiRequestFormat==='curl'?'cURL':'HTTP')+' request" title="Copy request"')+'</div></header>'
     +'<div class="api-code-body"><pre id="api-request-panel" role="tabpanel" aria-labelledby="api-format-'+apiRequestFormat+'" tabindex="0"><code>'+esc(apiRequestFormat==='curl'?curl:http)+'</code></pre></div></section>';
   return '<main class="workspace api-workspace"><div class="api-content"><header class="api-heading"><h1>API Configuration</h1></header>'
-    +'<section class="api-key-section"><div class="api-key-box"><div class="api-key-value"><h2>API Key</h2><code>'+esc(apiInfo?.key||(apiLoading?'Preparing your local API…':'API unavailable'))+'</code></div><div class="api-key-actions">'
+    +'<section class="api-key-section"><h2 class="api-key-label">API key</h2><div class="api-key-box"><div class="api-key-value"><code>'+esc(apiInfo?.key?(apiKeyRevealed?apiInfo.key:maskedApiKey()):(apiLoading?'Preparing your local API…':'API unavailable'))+'</code></div><div class="api-key-actions">'
+    +button('reveal-api-key',icons.info,'message-action','aria-label="'+(apiKeyRevealed?'Hide':'Reveal')+' API key" title="'+(apiKeyRevealed?'Hide':'Reveal')+' API key" aria-pressed="'+apiKeyRevealed+'" '+(!apiInfo?.key?'disabled':''))
     +button('copy-api:key',icons.copy,'message-action','aria-label="Copy API key" title="Copy API key" '+(!apiInfo?.key?'disabled':''))
     +button('regenerate-api-key',icons.restart,'message-action','aria-label="Regenerate API key" title="Regenerate API key" '+(!apiInfo?.running||apiLoading?'disabled':''))+'</div></div><p>Keep your key private. Regenerating it replaces the key used by your integrations.</p></section>'
     +'<section class="api-availability" aria-label="API availability"><div><span class="api-availability-label"><i></i> Available while you are</span><h2>Keep Launcher open.<br>Let your models do the rest.</h2></div><div class="api-availability-details"><p><strong>Computer awake. Launcher running.</strong>Your computer powers every API response. The API is available while both are on.</p><p><strong>No manual model switching.</strong>Requests automatically load stopped models before generating a response.</p></div></section>'
@@ -784,6 +803,7 @@ function applyCommand(search) {
 
 document.addEventListener('pointerdown',event=>{
   if(engineMenuOpen&&!event.target.closest('.sidebar-bottom')){engineMenuOpen=false;syncEngineMenu();}
+  if(catalogMenu&&!event.target.closest('.catalog-filter')){catalogMenu=null;root.querySelectorAll('.catalog-filter-options').forEach(menu=>menu.hidden=true);root.querySelectorAll('.catalog-filter-toggle').forEach(button=>button.setAttribute('aria-expanded','false'));}
   if(apiModelOpen&&!event.target.closest('.api-model-picker'))setApiModelMenu(false);
   if (modelMenuOpen && !event.target.closest('.model-picker')) setModelMenu(false);
   if (skillsMenuOpen && !event.target.closest('.skills-picker, #skill-dialog')) setSkillsMenu(false);
@@ -841,17 +861,28 @@ root.addEventListener('click',async event=>{
     modelMenuOpen=false;
     skillsMenuOpen=false;
     page=action;
+    apiKeyRevealed=false;apiCodeRevealed=false;catalogMenu=null;
     render();
     if(page==='api')await loadApiConfiguration();
     if(event.detail===0) root.querySelector(`.sidebar [data-action="${action}"]`)?.focus();
     return;
+  }
+  if(action==='catalog-menu'){catalogMenu=catalogMenu===value?null:value;render();if(event.detail===0){const target=catalogMenu?root.querySelector('.catalog-filter-options:not([hidden]) [aria-selected="true"]'):root.querySelector('[data-action="catalog-menu:'+value+'"]');target?.focus({preventScroll:true});}return;}
+  if(action==='catalog-filter'){catalogFilter[value]=el.dataset.filterValue;catalogMenu=null;render();root.querySelector('[data-action="catalog-menu:'+value+'"]')?.focus({preventScroll:true});return;}
+  if(action==='catalog-reset'){catalogFilter={provider:'all',parameters:'all',sort:'speed'};catalogMenu=null;render();return;}
+  if(action==='reveal-api-key'){
+    apiKeyRevealed=!apiKeyRevealed;root.querySelector('.api-key-box code').textContent=apiKeyRevealed?apiInfo.key:maskedApiKey();
+    el.setAttribute('aria-pressed',String(apiKeyRevealed));el.setAttribute('aria-label',(apiKeyRevealed?'Hide':'Reveal')+' API key');el.title=(apiKeyRevealed?'Hide':'Reveal')+' API key';return;
+  }
+  if(action==='reveal-api-code'){
+    apiCodeRevealed=!apiCodeRevealed;el.setAttribute('aria-pressed',String(apiCodeRevealed));el.setAttribute('aria-label',(apiCodeRevealed?'Hide':'Reveal')+' API key in request');el.title=(apiCodeRevealed?'Hide':'Reveal')+' API key';void updateApiRequestContent();return;
   }
   if(action==='api-format'&&['curl','http'].includes(value)){setApiFormat(value);return;}
   if(action==='toggle-api-model'){setApiModelMenu(!apiModelOpen);return;}
   if(action==='api-model'){apiModelId=value;setApiModelMenu(false,true);updateApiModel();void updateApiRequestContent();return;}
   if(action==='retry-api'){await loadApiConfiguration();return;}
   if(action==='regenerate-api-key'){
-    el.disabled=true;try{apiInfo=await api.regenerateApiKey();}catch(error){tell(error);}finally{render();}return;
+    apiKeyRevealed=false;apiCodeRevealed=false;el.disabled=true;try{apiInfo=await api.regenerateApiKey();}catch(error){tell(error);}finally{render();}return;
   }
   if(action==='copy-api'){
     const examples=apiExamples();const valueToCopy=value==='key'?apiInfo?.key:value==='curl'?examples.curl:examples.http;
@@ -951,6 +982,8 @@ root.addEventListener('keydown',event=>{
     }
   }
   if(event.target.closest('.api-request-tabs')&&['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();setApiFormat(event.key==='Home'?'curl':event.key==='End'?'http':apiRequestFormat==='curl'?'http':'curl',true);return;}
+  if(event.key==='Escape'&&catalogMenu){event.preventDefault();const key=catalogMenu;catalogMenu=null;render();root.querySelector('[data-action="catalog-menu:'+key+'"]')?.focus({preventScroll:true});return;}
+  if(event.target.closest('.catalog-filter-options')&&['ArrowUp','ArrowDown','Home','End'].includes(event.key)){event.preventDefault();const options=[...event.target.closest('.catalog-filter-options').querySelectorAll('button')];const index=options.indexOf(event.target);const next=event.key==='Home'?0:event.key==='End'?options.length-1:(index+(event.key==='ArrowDown'?1:-1)+options.length)%options.length;options[next]?.focus({preventScroll:true});return;}
   if(event.key==='Escape'&&apiModelOpen){event.preventDefault();setApiModelMenu(false,true);return;}
   if(event.target.matches('[data-action="toggle-api-model"]')&&['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();setApiModelMenu(true);root.querySelector('.api-model-options [aria-selected="true"]')?.focus({preventScroll:true});return;}
   if(event.target.closest('.api-model-options')&&['ArrowUp','ArrowDown','Home','End'].includes(event.key)){
