@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,shell}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,shell,clipboard}=require('electron');
 const {existsSync}=require('node:fs');
 const fs=require('node:fs/promises');
 const path=require('node:path');
@@ -114,6 +114,10 @@ app.whenReady().then(async()=>{
   if (!Array.isArray(settings.skills)) settings.skills = [];
   await fs.mkdir(settings.directory,{recursive:true,mode:0o700});
   action('state',snapshot);
+  action('copyText',text=>{
+    if(typeof text!=='string'||text.length>1_000_000)throw Error('This message is too large to copy.');
+    clipboard.writeText(text);return true;
+  });
   action('openWebSource',async url=>{
     const link = typeof url === 'string' && /^https?:\/\//i.test(url) && safeUrl(url);
     if (!link) throw Error('Invalid web source.');

@@ -10,6 +10,7 @@ let streamReasoningOpen = false;
 let engineMenuOpen = false;
 let modelActionBusy = false;
 let liveMetrics = null;
+let regeneratingIndex = null;
 let modelMenuOpen = false;
 let skillsMenuOpen = false;
 let commandIndex = 0;
@@ -48,6 +49,9 @@ const icons={
   send:icon('M12 20V4m-6 6 6-6 6 6'),
   plus:icon('M12 5v14M5 12h14'),
   play:icon('M8 5v14l11-7-11-7Z'),
+  copy:icon('M9 8h11v13H9V8ZM5 16H3V3h11v2'),
+  restart:icon('M20 7v5h-5m5-5a8 8 0 1 0 1 8'),
+  check:icon('M5 12l4 4L19 6'),
 };
 const svgBrand='<img class="brand-symbol" src="powerbrix-logo.png" alt=""><span class="wordmark"><img src="powerbrix-wordmark.svg" alt="PowerBrix"><small>LAUNCHER</small></span>';
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -383,11 +387,11 @@ function responseNote(turn) {
 function chatStats(){
   if(!turns.some(turn=>turn.role==='user'))return '';
   const saved=turns.filter(turn=>turn.role==='assistant');
-  const measurements=saved.map(turn=>turn.metrics);
+  const measurements=saved.flatMap(turn=>[...(turn.previousMetrics||[]),turn.metrics]);
   if(thinking&&liveMetrics)measurements.push(liveMetrics);
   const summary=window.PowerBrixChatMetrics.summarizeMetrics(measurements);
   const active=activeChatModel()?.id;
-  const latest=thinking&&liveMetrics?liveMetrics:[...saved].reverse().find(turn=>turn.modelId===active&&turn.metrics)?.metrics;
+  const latest=thinking&&liveMetrics?liveMetrics:[...saved].reverse().sort((a,b)=>(b.generatedAt||0)-(a.generatedAt||0)).find(turn=>turn.modelId===active&&turn.metrics)?.metrics;
   const used=latest?.promptTokens!=null&&latest?.generatedTokens!=null?latest.promptTokens+latest.generatedTokens:null;
   const capacity=latest?.contextCapacity;
   const percent=used!=null&&capacity>0?Math.min(100,used/capacity*100):null;
@@ -407,13 +411,20 @@ function updateChatStats(){
 
 function chatArea(){
   const active=activeChatModel();
-  const messages=turns.map(normalizeReasoning).map((turn,index)=>'<div class="message '+turn.role+'">'
-    +(turn.role==='assistant'?reasoningPanel(turn.reasoning,turn.reasoningOpen,index):'')
-    +fileChips(turn.attachments,false)+(turn.webSearch?'<span class="message-web-command">/web-search</span> ':'')+esc(turn.content)
-    +renderSources(turn.sources)+responseNote(turn)
-    +(turn.shortened?'<small class="file-note">Used the most recent context and relevant excerpts.</small>':'')+'</div>').join('');
+  const stream='<div class="chat-turn assistant streaming" id="stream"><div class="message assistant"><span>'+esc(status)+'</span></div></div>';
+  const messages=turns.map(normalizeReasoning).map((turn,index)=>{
+    if(thinking&&regeneratingIndex===index)return stream;
+    return '<div class="chat-turn '+turn.role+'">'
+      +(turn.role==='assistant'?reasoningPanel(turn.reasoning,turn.reasoningOpen,index):'')
+      +'<div class="message '+turn.role+'">'+fileChips(turn.attachments,false)
+      +(turn.webSearch?'<span class="message-web-command">/web-search</span> ':'')+esc(turn.content)
+      +renderSources(turn.sources)+responseNote(turn)
+      +(turn.shortened?'<small class="file-note">Used the most recent context and relevant excerpts.</small>':'')+'</div>'
+      +'<div class="message-actions">'+button('copy-message:'+index,icons.copy,'message-action','aria-label="Copy message" title="Copy message"')
+      +button('regenerate:'+index,icons.restart,'message-action','aria-label="Regenerate response" title="Regenerate response" '+(chatBusy()?'disabled':''))+'</div></div>';
+  }).join('');
   const welcome='<div class="chat-welcome"><span class="tile">'+icons.chat+'</span><h1>What Can I <em>Help With?</em></h1><p>Your models. Your machine. Your conversation.</p></div>';
-  const streaming=thinking?'<div class="message assistant streaming" id="stream"><span>'+esc(status)+'</span></div>':'';
+  const streaming=thinking&&regeneratingIndex===null?stream:'';
   const header = '<header class="workspace-header"><div><p class="eyebrow">Private workspace</p><h2>AI Chat</h2></div>'
     +button('new',icons.plus+' New chat','btn secondary compact',thinking?'disabled':'')
     +'</header>';
@@ -582,11 +593,12 @@ function showStream(){
     panel=node.querySelector('.model-reasoning');
   }
   if (panel) panel.querySelector('.reasoning-text').textContent=reasoning;
-  let output=node.querySelector('.stream-answer');
+  const bubble=node.querySelector('.message');
+  let output=bubble.querySelector('.stream-answer');
   if (!output) {
     // Replace the initial status once, keeping the reasoning disclosure connected thereafter.
-    for (const child of [...node.children]) if (child !== panel) child.remove();
-    output=document.createElement('div');output.className='stream-answer';node.append(output);
+    bubble.replaceChildren();
+    output=document.createElement('div');output.className='stream-answer';bubble.append(output);
   }
   output.textContent=answer || status;
   output.classList.toggle('stream-status',!answer);
@@ -743,6 +755,12 @@ root.addEventListener('click',async event=>{
     if(event.detail===0) root.querySelector(`.sidebar [data-action="${action}"]`)?.focus();
     return;
   }
+  if(action==='copy-message'){
+    const turn=normalizeReasoning(turns[Number(value)]);if(!turn)return;
+    try{await api.copyText(turn.content||'');el.innerHTML=icons.check;el.title='Copied';setTimeout(()=>{if(el.isConnected){el.innerHTML=icons.copy;el.title='Copy message';}},1600);}catch(error){tell(error);}
+    return;
+  }
+  if(action==='regenerate'){await regenerateResponse(Number(value));return;}
   if(action==='preview-wait'&&demo){window.PowerBrixActivity?.preview();return;}
   if(action==='toggle-engine-menu'){toggleEngineMenu(!engineMenuOpen);return;}
   if(action==='play-engine'||action==='stop-engine'||action==='uninstall') {
@@ -875,19 +893,42 @@ root.addEventListener('submit',async event=>{
   turns.push({role:'user',content,attachments,webSearch:useWebSearch});thinking=true;status=useWebSearch?'Searching the web…':'Starting local model…';answer='';reasoning='';liveMetrics=null;streamReasoningOpen=false;render();
   const chatScroll=document.querySelector('#chat-scroll');
   if(chatScroll)chatScroll.scrollTop=chatScroll.scrollHeight;
-  const history=turns.map(normalizeReasoning).filter(turn=>turn.content?.trim()).slice(-35).map(turn=>({role:turn.role,content:turn.content,
+  await generateResponse(active,turns.length-1,useWebSearch,()=>{turns.pop();pendingFiles=attachments;drafts.set(draftKey(),typed);});
+});
+async function generateResponse(active,promptIndex,useWebSearch,onEmpty,replaceIndex=null){
+  const history=turns.slice(0,promptIndex+1).map(normalizeReasoning).filter(turn=>turn.content?.trim()).slice(-35).map(turn=>({role:turn.role,content:turn.content,
     files:(turn.attachments||[]).map(file=>file.id)}));
   const data=await perform('chat',active.id,history,useWebSearch);
-  if(data?.answer||answer||data?.reasoning||reasoning)turns.push({
-    role:'assistant',content:data?.answer||answer,reasoning:data?.reasoning||reasoning,
-    reasoningOpen:streamReasoningOpen,finishReason:data?.finishReason||(data?.stopped?'cancelled':!data?'interrupted':null),
-    shortened:data?.shortened,sources:data?.sources,metrics:data?.metrics||liveMetrics,modelId:active.id,
-  });
-  else if(!data?.stopped){turns.pop();pendingFiles=attachments;drafts.set(draftKey(),typed);}
-  thinking=false;saveConversation();render();
-  const area=document.querySelector('#chat-scroll');if(area)area.scrollTop=area.scrollHeight;
+  if(replaceIndex!==null&&(!data||data.stopped)){
+    if(liveMetrics)(turns[replaceIndex].previousMetrics??=[]).push(liveMetrics);
+    tell(data?.stopped?'Regeneration stopped. Previous response kept.':(notice.textContent?notice.textContent+' ':'')+'Previous response kept.');
+  }else if(data?.answer||answer||data?.reasoning||reasoning){
+    const reply={role:'assistant',content:data?.answer||answer,reasoning:data?.reasoning||reasoning,
+      reasoningOpen:streamReasoningOpen,finishReason:data?.finishReason||(data?.stopped?'cancelled':!data?'interrupted':null),
+      shortened:data?.shortened,sources:data?.sources,metrics:data?.metrics||liveMetrics,modelId:active.id,generatedAt:Date.now()};
+    if(replaceIndex!==null){
+      const previous=turns[replaceIndex];
+      reply.previousMetrics=[...(previous.previousMetrics||[]),...(previous.metrics?[previous.metrics]:[])];
+      turns[replaceIndex]=reply;
+    }else turns.push(reply);
+  }else if(!data?.stopped)onEmpty?.();
+  thinking=false;regeneratingIndex=null;saveConversation();render();
+  const area=document.querySelector('#chat-scroll');if(area&&replaceIndex===null)area.scrollTop=area.scrollHeight;
   document.querySelector('#prompt')?.focus();
-});
+}
+async function regenerateResponse(index){
+  if(chatBusy()||!Number.isInteger(index)||!turns[index])return;
+  const active=activeChatModel();if(!active){tell('Select a downloaded model first.');return;}
+  let promptIndex=turns[index].role==='user'?index:index-1;
+  while(promptIndex>=0&&turns[promptIndex].role!=='user')promptIndex--;
+  if(promptIndex<0)return;
+  const replaceIndex=turns[promptIndex+1]?.role==='assistant'?promptIndex+1:null;
+  if(replaceIndex===null&&promptIndex!==turns.length-1){tell('Regenerate the response below this prompt.');return;}
+  thinking=true;regeneratingIndex=replaceIndex;status='Regenerating response…';answer='';reasoning='';liveMetrics=null;streamReasoningOpen=false;
+  render();
+  await generateResponse(active,promptIndex,Boolean(turns[promptIndex].webSearch),null,replaceIndex);
+}
+
 api.onEngine(status=>{
   if (!state || !Object.hasOwn(engineLabels,status)) return;
   state.engineStatus=status;
